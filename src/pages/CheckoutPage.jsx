@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useShop } from '../context/ShopContext';
 import { sendOrderNotificationEmail } from '../utils/orderEmail';
-import { CheckCircle2, ShieldCheck, ArrowLeft, Phone, CreditCard, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, ArrowLeft, Phone, Wallet, Loader2 } from 'lucide-react';
 
 export default function CheckoutPage() {
   const {
@@ -24,32 +24,39 @@ export default function CheckoutPage() {
     city: 'Bilaspur',
     state: 'Chhattisgarh',
     pincode: '495001',
-    paymentMethod: 'razorpay',
+    paymentMethod: 'online_upi',
     notes: ''
   });
 
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [placedOrderDetails, setPlacedOrderDetails] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentError, setPaymentError] = useState('');
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const finalizeOrder = (paymentId, orderId) => {
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!formData.name || !formData.phone || !formData.address) {
+      alert("Please fill in your Name, Phone Number, and Address.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
     const generatedOrderId = 'GM-' + Math.floor(100000 + Math.random() * 900000);
     const order = {
       orderId: generatedOrderId,
-      razorpayOrderId: orderId || null,
-      razorpayPaymentId: paymentId || null,
       items: cart,
       customer: formData,
       total: cartTotal,
       subtotal: cartSubtotal,
       delivery: deliveryFee,
-      status: "Paid",
+      paymentMethod: 'Online Payment (UPI/QR on WhatsApp)',
+      status: "Pending Confirmation",
       date: new Date().toLocaleDateString('en-IN', {
         day: 'numeric',
         month: 'short',
@@ -72,18 +79,19 @@ export default function CheckoutPage() {
       `👤 *Customer:* ${order.customer.name}\n` +
       `📱 *Phone:* +91 ${order.customer.phone}\n` +
       `📍 *Address:* ${order.customer.address}, ${order.customer.city} - ${order.customer.pincode}\n` +
+      `💳 *Payment Method:* ${order.paymentMethod}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `🛒 *ITEMS ORDERED:*\n${itemsSummary}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `💵 *Subtotal:* Rs ${order.subtotal}\n` +
       `🚚 *Delivery:* ${order.delivery === 0 ? 'FREE' : `Rs ${order.delivery}`}\n` +
       `💰 *TOTAL AMOUNT:* Rs ${order.total}\n` +
-      `💳 *Payment:* RAZORPAY ONLINE (ID: ${paymentId || 'Verified'})\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `Please confirm and dispatch this order.`;
 
     const targetPhone = (businessInfo?.phone || '9993617796').replace(/\D/g, '');
     const whatsappUrl = `https://wa.me/91${targetPhone}?text=${encodeURIComponent(whatsappMessage)}`;
+
     addOrder(order);
     setPlacedOrderDetails({ ...order, whatsappUrl });
     setOrderPlaced(true);
@@ -98,116 +106,6 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setPaymentError('');
-
-    if (!formData.name || !formData.phone || !formData.address) {
-      alert("Please fill in your Name, Phone Number, and Address.");
-      return;
-    }
-
-    const amountInPaise = Math.round(cartTotal * 100);
-    if (amountInPaise < 100) {
-      alert("Order total must be at least ₹1.");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      // Step 1: Create Razorpay Order via Serverless API
-      const res = await fetch('/api/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: amountInPaise,
-          receipt: `gm_${Date.now()}`
-        })
-      });
-
-      const orderData = await res.json();
-
-      if (!res.ok || !orderData.order_id) {
-        throw new Error(orderData.error || 'Failed to initialize payment gateway.');
-      }
-
-      // Step 2: Open Razorpay Standard Checkout Modal
-      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TW2BW4tR7JBxd7';
-
-      const options = {
-        key: razorpayKey,
-        amount: orderData.amount,
-        currency: orderData.currency || 'INR',
-        name: 'Gargee Medicose',
-        description: `Pet Essentials Order (${cart.length} items)`,
-        image: '/logo.png',
-        order_id: orderData.order_id,
-        handler: async function (response) {
-          try {
-            // Step 3: Verify Payment Signature via Serverless API
-            const verifyRes = await fetch('/api/verify-payment', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature
-              })
-            });
-
-            const verifyData = await verifyRes.json();
-
-            if (verifyRes.ok && verifyData.success) {
-              finalizeOrder(response.razorpay_payment_id, response.razorpay_order_id);
-            } else {
-              setPaymentError(verifyData.error || 'Payment verification failed. Please contact support.');
-              setIsSubmitting(false);
-            }
-          } catch (verifyErr) {
-            console.error('Verification Request Failed:', verifyErr);
-            setPaymentError('Network error while verifying payment signature.');
-            setIsSubmitting(false);
-          }
-        },
-        prefill: {
-          name: formData.name,
-          email: formData.email,
-          contact: formData.phone
-        },
-        notes: {
-          address: formData.address,
-          city: formData.city
-        },
-        theme: {
-          color: '#0284c7'
-        },
-        modal: {
-          ondismiss: function () {
-            setIsSubmitting(false);
-            setPaymentError('Payment cancelled by user.');
-          }
-        }
-      };
-
-      if (window.Razorpay) {
-        const rzp = new window.Razorpay(options);
-        rzp.on('payment.failed', function (response) {
-          console.error('Payment Failed Event:', response.error);
-          setPaymentError(response.error.description || 'Payment process failed.');
-          setIsSubmitting(false);
-        });
-        rzp.open();
-      } else {
-        throw new Error('Razorpay SDK failed to load. Please check your internet connection.');
-      }
-    } catch (err) {
-      console.error('Payment submission error:', err);
-      setPaymentError(err.message || 'An unexpected error occurred.');
-      setIsSubmitting(false);
-    }
-  };
-
   if (orderPlaced && placedOrderDetails) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
@@ -218,7 +116,7 @@ export default function CheckoutPage() {
 
           <div>
             <span className="text-xs font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-              Payment Successful & Order Confirmed
+              Order Submitted Successfully
             </span>
             <h1 className="font-heading text-2xl sm:text-3xl font-extrabold text-slate-900 mt-3">
               Thank You for Your Order!
@@ -238,21 +136,21 @@ export default function CheckoutPage() {
               <span className="text-right max-w-xs">{placedOrderDetails.customer.address}, {placedOrderDetails.customer.city} - {placedOrderDetails.customer.pincode}</span>
             </div>
             <div className="flex justify-between text-slate-600 border-b pb-2">
-              <span>Payment Reference:</span>
-              <span className="font-bold text-emerald-600 font-mono">{placedOrderDetails.razorpayPaymentId || 'Verified'}</span>
+              <span>Payment Option:</span>
+              <span className="font-bold text-slate-800">{placedOrderDetails.paymentMethod}</span>
             </div>
             <div className="flex justify-between font-extrabold text-sm text-slate-900 pt-1">
-              <span>Total Paid:</span>
+              <span>Total Payable:</span>
               <span className="text-sky-600">₹{placedOrderDetails.total.toLocaleString('en-IN')}</span>
             </div>
           </div>
 
           <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 space-y-2 text-xs">
             <p className="font-bold text-sky-900">
-              Order Dispatched via Gargee Medicose
+              Confirm your order on WhatsApp
             </p>
             <p className="text-[11px] text-slate-600">
-              Your payment of <strong>₹{placedOrderDetails.total}</strong> has been securely processed via Razorpay. Order details have been sent to WhatsApp.
+              Order details were generated and sent to WhatsApp. Click below if WhatsApp did not open automatically.
             </p>
           </div>
 
@@ -264,7 +162,7 @@ export default function CheckoutPage() {
               className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-6 py-3 rounded-full text-xs transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20"
             >
               <Phone className="w-4 h-4" />
-              <span>Send Full Order & Receipt on WhatsApp</span>
+              <span>Send Order on WhatsApp</span>
             </a>
             <button
               onClick={() => navigateTo('home')}
@@ -410,46 +308,28 @@ export default function CheckoutPage() {
                 2. Payment Method
               </h3>
               <span className="text-[10px] font-black uppercase tracking-wider text-sky-700 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-full">
-                Instant Razorpay Gateway
+                Online Payment Only
               </span>
             </div>
 
             <div className="space-y-3">
               <div className="p-4 rounded-2xl border-2 border-sky-500 bg-sky-50/40 space-y-3">
                 <div className="flex items-start gap-3">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="razorpay"
-                    checked={true}
-                    readOnly
-                    className="accent-sky-600 mt-0.5"
-                  />
+                  <Wallet className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <p className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                      <span>Razorpay Secure (UPI, GPay, PhonePe, Paytm, Cards, NetBanking)</span>
+                    <p className="text-xs font-bold text-slate-900">
+                      Online Payment via UPI / QR Code (WhatsApp Instant Pay)
                     </p>
                     <p className="text-[11px] text-slate-600 leading-relaxed">
-                      Instant verification with 256-bit encryption. Supports all UPI apps, Credit/Debit cards & NetBanking.
+                      Cash on Delivery is currently disabled. Pay online securely using UPI (Google Pay, PhonePe, Paytm, BHIM) or QR Code provided on WhatsApp upon order confirmation.
                     </p>
-                  </div>
-                </div>
-
-                <div className="bg-white p-3 rounded-xl border border-sky-200/80 text-[11px] text-slate-700 flex items-center justify-between flex-wrap gap-2">
-                  <span className="font-semibold text-slate-500">Supported Methods:</span>
-                  <div className="flex items-center gap-2 font-bold text-slate-800 text-[10px]">
-                    <span className="bg-slate-100 px-2 py-0.5 rounded">UPI / QR</span>
-                    <span className="bg-slate-100 px-2 py-0.5 rounded">Google Pay</span>
-                    <span className="bg-slate-100 px-2 py-0.5 rounded">PhonePe</span>
-                    <span className="bg-slate-100 px-2 py-0.5 rounded">Cards</span>
-                    <span className="bg-slate-100 px-2 py-0.5 rounded">NetBanking</span>
                   </div>
                 </div>
               </div>
 
               <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3 text-[11px] text-emerald-800 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>100% secure direct online payment powered by Razorpay.</span>
+                <span>100% online payment verification before dispatch.</span>
               </div>
             </div>
           </div>
@@ -465,16 +345,19 @@ export default function CheckoutPage() {
               {cart.map((item) => {
                 const itemKey = item.cartItemId || item.id;
                 return (
-                <div key={itemKey} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-700">x{item.quantity}</span>
-                    <span className="text-slate-600 line-clamp-1 max-w-[180px]">{item.name} {item.selectedVariant && `(${item.selectedVariant.size})`}</span>
+                  <div key={itemKey} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-700">x{item.quantity}</span>
+                      <span className="text-slate-600 line-clamp-1 max-w-[180px]">
+                        {item.name} {item.selectedVariant && `(${item.selectedVariant.size})`}
+                      </span>
+                    </div>
+                    <span className="font-bold text-slate-900">
+                      ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+                    </span>
                   </div>
-                  <span className="font-bold text-slate-900">
-                    ₹{(item.price * item.quantity).toLocaleString('en-IN')}
-                  </span>
-                </div>
-              );})}
+                );
+              })}
             </div>
 
             <div className="border-t pt-4 space-y-2 text-xs text-slate-600">
@@ -494,34 +377,27 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {paymentError && (
-              <div className="bg-rose-50 border border-rose-200 text-rose-600 text-xs p-3 rounded-2xl flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{paymentError}</span>
-              </div>
-            )}
-
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 disabled:opacity-50 text-white font-bold py-4 rounded-full text-sm transition shadow-lg shadow-sky-500/25 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-50 text-white font-bold py-4 rounded-full text-sm transition shadow-lg shadow-emerald-500/25 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Processing Razorpay Checkout...</span>
+                  <span>Placing Order...</span>
                 </>
               ) : (
                 <>
-                  <CreditCard className="w-4 h-4" />
-                  <span>Pay ₹{cartTotal.toLocaleString('en-IN')} with Razorpay</span>
+                  <Phone className="w-4 h-4" />
+                  <span>Place Order via WhatsApp (₹{cartTotal.toLocaleString('en-IN')})</span>
                 </>
               )}
             </button>
 
             <div className="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>Safe & Secure 256-bit Razorpay Checkout</span>
+              <span>Direct WhatsApp confirmation & fast store dispatch</span>
             </div>
           </div>
         </div>
