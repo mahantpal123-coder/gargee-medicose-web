@@ -37,7 +37,7 @@ export default function CheckoutPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.name || !formData.phone || !formData.address) {
@@ -50,6 +50,7 @@ export default function CheckoutPage() {
     const generatedOrderId = 'GM-' + Math.floor(100000 + Math.random() * 900000);
     const order = {
       orderId: generatedOrderId,
+      id: generatedOrderId,
       items: cart,
       customer: formData,
       total: cartTotal,
@@ -64,45 +65,51 @@ export default function CheckoutPage() {
       })
     };
 
-    sendOrderNotificationEmail(order).catch((err) =>
-      console.error("Order notification email error:", err)
-    );
+    const res = await addOrder(order);
 
-    const itemsSummary = (order.items || [])
-      .map((item, idx) => `${idx + 1}. ${item.name} (x${item.quantity}) - Rs ${item.price * item.quantity}`)
-      .join('\n');
+    if (res && res.success) {
+      sendOrderNotificationEmail(res.order || order).catch((err) =>
+        console.error("Order notification email error:", err)
+      );
 
-    const whatsappMessage = `🐾 *NEW ORDER - GARGEE MEDICOSE* 🐾\n` +
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `📦 *Order ID:* #${order.orderId}\n` +
-      `📅 *Date:* ${order.date}\n` +
-      `👤 *Customer:* ${order.customer.name}\n` +
-      `📱 *Phone:* +91 ${order.customer.phone}\n` +
-      `📍 *Address:* ${order.customer.address}, ${order.customer.city} - ${order.customer.pincode}\n` +
-      `💳 *Payment Method:* ${order.paymentMethod}\n` +
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `🛒 *ITEMS ORDERED:*\n${itemsSummary}\n` +
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `💵 *Subtotal:* Rs ${order.subtotal}\n` +
-      `🚚 *Delivery:* ${order.delivery === 0 ? 'FREE' : `Rs ${order.delivery}`}\n` +
-      `💰 *TOTAL AMOUNT:* Rs ${order.total}\n` +
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `Please confirm and dispatch this order.`;
+      const itemsSummary = (order.items || [])
+        .map((item, idx) => `${idx + 1}. ${item.name} (x${item.quantity}) - Rs ${item.price * item.quantity}`)
+        .join('\n');
 
-    const targetPhone = (businessInfo?.phone || '9993617796').replace(/\D/g, '');
-    const whatsappUrl = `https://wa.me/91${targetPhone}?text=${encodeURIComponent(whatsappMessage)}`;
+      const whatsappMessage = `🐾 *NEW ORDER - GARGEE MEDICOSE* 🐾\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `📦 *Order ID:* #${order.orderId}\n` +
+        `📅 *Date:* ${order.date}\n` +
+        `👤 *Customer:* ${order.customer.name}\n` +
+        `📱 *Phone:* +91 ${order.customer.phone}\n` +
+        `📍 *Address:* ${order.customer.address}, ${order.customer.city} - ${order.customer.pincode}\n` +
+        `💳 *Payment Method:* ${order.paymentMethod}\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `🛒 *ITEMS ORDERED:*\n${itemsSummary}\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `💵 *Subtotal:* Rs ${order.subtotal}\n` +
+        `🚚 *Delivery:* ${order.delivery === 0 ? 'FREE' : `Rs ${order.delivery}`}\n` +
+        `💰 *TOTAL AMOUNT:* Rs ${order.total}\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `Please confirm and dispatch this order.`;
 
-    addOrder(order);
-    setPlacedOrderDetails({ ...order, whatsappUrl });
-    setOrderPlaced(true);
-    clearCart();
-    setIsSubmitting(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+      const targetPhone = (businessInfo?.phone || '9993617796').replace(/\D/g, '');
+      const whatsappUrl = `https://wa.me/91${targetPhone}?text=${encodeURIComponent(whatsappMessage)}`;
 
-    try {
-      window.open(whatsappUrl, '_blank');
-    } catch (e) {
-      console.warn("Auto popup blocked:", e);
+      setPlacedOrderDetails({ ...(res.order || order), whatsappUrl });
+      setOrderPlaced(true);
+      clearCart();
+      setIsSubmitting(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      try {
+        window.open(whatsappUrl, '_blank');
+      } catch (e) {
+        console.warn("Auto popup blocked:", e);
+      }
+    } else {
+      setIsSubmitting(false);
+      alert("Order placement failed: " + (res?.error || "Could not save order to database. Please try again."));
     }
   };
 

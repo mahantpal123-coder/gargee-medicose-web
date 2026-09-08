@@ -805,14 +805,13 @@ export default function AdminPage() {
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <button
             onClick={() => {
-              syncToCloud();
-              showToast("Pushed all products and changes to Live Cloud!");
+              showToast("Live sync active! Changes saved directly to Firestore.");
             }}
             className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3.5 py-2.5 rounded-full transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-            title="Force push all products to Cloud"
+            title="Live sync active"
           >
             <ShieldCheck className="w-4 h-4" />
-            <span>Sync to Cloud</span>
+            <span>Live Firestore Active</span>
           </button>
 
           <button

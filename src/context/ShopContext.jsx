@@ -1,7 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '../firebase.js';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, onSnapshot, setDoc, getDoc, enableNetwork, disableNetwork } from 'firebase/firestore';
+import {
+  doc,
+  collection,
+  onSnapshot,
+  setDoc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  runTransaction
+} from 'firebase/firestore';
 import { verifyIsAdmin, signOutAdmin } from '../utils/adminAuth.js';
 import {
   PRODUCTS as INITIAL_PRODUCTS,
@@ -20,89 +29,12 @@ const INITIAL_INQUIRIES = [
     petType: "Dog",
     message: "Do you have Royal Canin Golden Retriever Junior 12kg available in stock?",
     status: "New"
-  },
-  {
-    id: "inq-102",
-    date: "27 Aug 2026, 11:15 AM",
-    name: "Dr. Neha Patel",
-    phone: "9425233445",
-    petType: "Wholesale",
-    message: "Looking for bulk supply of Petstar puppy dry food and tick spray for our clinic in Bilaspur.",
-    status: "Contacted"
   }
 ];
 
-const INITIAL_ORDERS = [
-  {
-    "orderId": "GM-782194",
-    "date": "26 Aug 2026",
-    "customerPhone": "9826112233",
-    "customer": {
-      "name": "Ramesh Sharma",
-      "phone": "9826112233",
-      "email": "ramesh.bilaspur@gmail.com",
-      "address": "House 24, Nehru Nagar, Near Shiv Mandir",
-      "city": "Bilaspur",
-      "state": "Chhattisgarh",
-      "pincode": "495001",
-      "paymentMethod": "upi"
-    },
-    "items": [
-      {
-        "id": "rc-maxi-adult",
-        "name": "Royal Canin Maxi Adult Dog Food",
-        "brand": "Royal Canin",
-        "price": 3250,
-        "quantity": 1,
-        "image": "https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=500&q=80"
-      },
-      {
-        "id": "drools-dog-treats-calcium-bone",
-        "name": "Drools Absolute Calcium Bone Treats",
-        "brand": "Drools",
-        "price": 350,
-        "quantity": 2,
-        "image": "https://images.unsplash.com/photo-1535294435445-d7249524ef2e?auto=format&fit=crop&w=500&q=80"
-      }
-    ],
-    "subtotal": 3950,
-    "delivery": 0,
-    "total": 3950,
-    "status": "Processing"
-  },
-  {
-    "orderId": "GM-541298",
-    "date": "25 Aug 2026",
-    "customerPhone": "9179044556",
-    "customer": {
-      "name": "Pooja Verma",
-      "phone": "9179044556",
-      "email": "pooja.v@outlook.com",
-      "address": "Flat 302, Sai Vihar Apartment, Vyapar Vihar",
-      "city": "Bilaspur",
-      "state": "Chhattisgarh",
-      "pincode": "495004",
-      "paymentMethod": "upi"
-    },
-    "items": [
-      {
-        "id": "whiskas-ocean-fish-adult",
-        "name": "Whiskas Adult Dry Cat Food",
-        "brand": "Whiskas",
-        "price": 499,
-        "quantity": 2,
-        "image": "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=500&q=80"
-      }
-    ],
-    "subtotal": 998,
-    "delivery": 70,
-    "total": 1068,
-    "status": "Delivered"
-  }
-];
+const INITIAL_ORDERS = [];
 
 export function ShopProvider({ children }) {
-  
   const [currentPage, setCurrentPage] = useState(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.toLowerCase();
@@ -146,11 +78,11 @@ export function ShopProvider({ children }) {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  
   const [currentCustomer, setCurrentCustomer] = useState(() => {
     try {
       const saved = localStorage.getItem('gargee_customer');
@@ -160,21 +92,19 @@ export function ShopProvider({ children }) {
     }
   });
 
-  
   const [adminUser, setAdminUser] = useState(null);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [isAdminAuthLoading, setIsAdminAuthLoading] = useState(true);
 
-  // Fallback: if Firebase auth never fires (network issue), stop loading after 5s
   useEffect(() => {
     const timeout = setTimeout(() => {
       setIsAdminAuthLoading(false);
     }, 5000);
     return () => clearTimeout(timeout);
   }, []);
-  const [cloudSyncStatus, setCloudSyncStatus] = useState('syncing'); 
 
-  
+  const [cloudSyncStatus, setCloudSyncStatus] = useState('syncing');
+
   const [products, setProducts] = useState(() => {
     try {
       const saved = localStorage.getItem('gargee_products');
@@ -184,7 +114,6 @@ export function ShopProvider({ children }) {
     }
   });
 
-  
   const [categories, setCategories] = useState(() => {
     try {
       const saved = localStorage.getItem('gargee_categories');
@@ -199,7 +128,6 @@ export function ShopProvider({ children }) {
     }
   });
 
-  
   const [businessInfo, setBusinessInfoState] = useState(() => {
     try {
       const saved = localStorage.getItem('gargee_business_info');
@@ -209,7 +137,6 @@ export function ShopProvider({ children }) {
     }
   });
 
-  
   const [orders, setOrders] = useState(() => {
     try {
       const saved = localStorage.getItem('gargee_orders');
@@ -219,7 +146,6 @@ export function ShopProvider({ children }) {
     }
   });
 
-  
   const [inquiries, setInquiries] = useState(() => {
     try {
       const saved = localStorage.getItem('gargee_inquiries');
@@ -229,14 +155,12 @@ export function ShopProvider({ children }) {
     }
   });
 
-  
   const [cart, setCart] = useState(() => {
     try {
       const saved = localStorage.getItem('gargee_cart');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          // Filter out legacy corrupt cart items (e.g. unknown Orijen items)
           return parsed.filter((item) => item && item.id && !item.name?.toLowerCase().includes('orijen'));
         }
       }
@@ -268,132 +192,86 @@ export function ShopProvider({ children }) {
   const [cartBadgeBump, setCartBadgeBump] = useState(false);
   const [wishlistBadgeBump, setWishlistBadgeBump] = useState(false);
 
-  
-  const applyRemoteCatalogData = (data) => {
-    if (!data) return;
-    if (Array.isArray(data.products) && data.products.length > 0) {
-      setProducts(data.products);
-      try {
-        localStorage.setItem('gargee_products', JSON.stringify(data.products));
-      } catch (e) {
-        console.warn(e);
-      }
-    }
-    if (Array.isArray(data.categories) && data.categories.length > 0) {
-      const mergedCategories = data.categories.map((cat) => {
-        const initial = INITIAL_CATEGORIES.find((c) => c.id === cat.id);
-        return initial ? { ...cat, image: initial.image } : cat;
-      });
-      setCategories(mergedCategories);
-      try {
-        localStorage.setItem('gargee_categories', JSON.stringify(mergedCategories));
-      } catch (e) {
-        console.warn(e);
-      }
-    }
-    if (data.businessInfo && typeof data.businessInfo === 'object') {
-      setBusinessInfoState(data.businessInfo);
-      try {
-        localStorage.setItem('gargee_business_info', JSON.stringify(data.businessInfo));
-      } catch (e) {
-        console.warn(e);
-      }
-    }
-    if (Array.isArray(data.orders)) {
-      setOrders(data.orders);
-      try {
-        localStorage.setItem('gargee_orders', JSON.stringify(data.orders));
-      } catch (e) {
-        console.warn(e);
-      }
-    }
-    if (Array.isArray(data.inquiries)) {
-      setInquiries(data.inquiries);
-      try {
-        localStorage.setItem('gargee_inquiries', JSON.stringify(data.inquiries));
-      } catch (e) {
-        console.warn(e);
-      }
-    }
-  };
-
-  
+  // REAL-TIME FIRESTORE LISTENERS FOR INDIVIDUAL COLLECTIONS
   useEffect(() => {
-    let unsubscribe = () => {};
+    let unsubProducts = () => {};
+    let unsubOrders = () => {};
+    let unsubSettings = () => {};
 
-    const catalogDocRef = doc(db, 'store_catalog', 'main_catalog');
-
-    // Immediately fetch latest data from Firestore on mount (bypasses stale localStorage)
-    getDoc(catalogDocRef)
-      .then((docSnap) => {
-        if (docSnap.exists()) {
-          applyRemoteCatalogData(docSnap.data());
-          setCloudSyncStatus('connected');
-        }
-      })
-      .catch((err) => {
-        console.warn('Firestore initial fetch error:', err.message);
-      });
-
-    // Then keep real-time listener for live updates
     try {
-      unsubscribe = onSnapshot(
-        catalogDocRef,
-        (docSnap) => {
-          if (docSnap.exists()) {
-            applyRemoteCatalogData(docSnap.data());
+      // 1. Listen to products collection
+      unsubProducts = onSnapshot(
+        collection(db, 'products'),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const fetchedProducts = snapshot.docs.map((docSnap) => ({
+              id: docSnap.id,
+              ...docSnap.data()
+            }));
+            setProducts(fetchedProducts);
+            try {
+              localStorage.setItem('gargee_products', JSON.stringify(fetchedProducts));
+            } catch (e) {}
             setCloudSyncStatus('connected');
           }
         },
         (error) => {
-          console.warn("Firestore listener note:", error.message);
+          console.warn('Products snapshot note:', error.message);
           setCloudSyncStatus('fallback');
         }
       );
+
+      // 2. Listen to orders collection
+      unsubOrders = onSnapshot(
+        collection(db, 'orders'),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const fetchedOrders = snapshot.docs
+              .map((docSnap) => ({
+                id: docSnap.id,
+                ...docSnap.data()
+              }))
+              .sort((a, b) => {
+                const timeA = new Date(a.createdAt || a.date || 0).getTime();
+                const timeB = new Date(b.createdAt || b.date || 0).getTime();
+                return timeB - timeA;
+              });
+            setOrders(fetchedOrders);
+            try {
+              localStorage.setItem('gargee_orders', JSON.stringify(fetchedOrders));
+            } catch (e) {}
+          }
+        },
+        (error) => {
+          console.warn('Orders snapshot note:', error.message);
+        }
+      );
+
+      // 3. Listen to store settings document
+      unsubSettings = onSnapshot(
+        doc(db, 'settings', 'store_config'),
+        (snapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.data();
+            if (data.businessInfo) setBusinessInfoState(data.businessInfo);
+            if (data.categories) setCategories(data.categories);
+          }
+        },
+        (error) => {
+          console.warn('Settings snapshot note:', error.message);
+        }
+      );
     } catch (err) {
-      console.warn("Firestore setup:", err);
-      setCloudSyncStatus('fallback');
+      console.warn('Firestore listeners setup warning:', err);
     }
 
-    return () => unsubscribe();
+    return () => {
+      unsubProducts();
+      unsubOrders();
+      unsubSettings();
+    };
   }, []);
 
-  
-  const syncToCloud = async (overrideData = {}) => {
-    const payload = {
-      products: overrideData.products || products,
-      categories: overrideData.categories || categories,
-      businessInfo: overrideData.businessInfo || businessInfo,
-      orders: overrideData.orders || orders,
-      inquiries: overrideData.inquiries || inquiries,
-      updatedAt: new Date().toISOString()
-    };
-
-    // Save to localStorage
-    try {
-      localStorage.setItem('gargee_products', JSON.stringify(payload.products));
-      localStorage.setItem('gargee_categories', JSON.stringify(payload.categories));
-      localStorage.setItem('gargee_business_info', JSON.stringify(payload.businessInfo));
-      localStorage.setItem('gargee_orders', JSON.stringify(payload.orders));
-      localStorage.setItem('gargee_inquiries', JSON.stringify(payload.inquiries));
-    } catch (e) {
-      console.warn(e);
-    }
-
-    // Save to Firestore (primary source of truth for all devices)
-    try {
-      const catalogDocRef = doc(db, 'store_catalog', 'main_catalog');
-      await setDoc(catalogDocRef, payload, { merge: true });
-      setCloudSyncStatus('connected');
-    } catch (err) {
-      console.error("Firestore sync warning:", err);
-      if (typeof window !== 'undefined') {
-        alert("Failed to sync to live database: " + err.message);
-      }
-    }
-  };
-
-  
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -442,7 +320,6 @@ export function ShopProvider({ children }) {
     }, 3000);
   };
 
-  
   const customerLogin = (customerData) => {
     setCurrentCustomer(customerData);
     showToast(`Welcome back, ${customerData.name || 'Pet Parent'}!`);
@@ -452,14 +329,14 @@ export function ShopProvider({ children }) {
     try {
       await signOut(auth);
     } catch (e) {
-      console.warn("Sign out error:", e);
+      console.warn('Sign out error:', e);
     }
     setCurrentCustomer(null);
     setAdminUser(null);
     setIsAdminLoggedIn(false);
     localStorage.removeItem('gargee_customer');
     localStorage.removeItem('gargee_admin_auth');
-    showToast("Logged out from account.");
+    showToast('Logged out from account.');
   };
 
   const adminLogout = async () => {
@@ -467,10 +344,9 @@ export function ShopProvider({ children }) {
     setAdminUser(null);
     setIsAdminLoggedIn(false);
     localStorage.removeItem('gargee_admin_auth');
-    showToast("Admin session locked. Logged out securely.");
+    showToast('Admin session locked. Logged out securely.');
   };
 
-  
   const addToCart = (product, quantity = 1, selectedVariant = null) => {
     const cartItemId = selectedVariant ? `${product.id}-${selectedVariant.size}` : product.id;
     const finalPrice = selectedVariant ? Number(selectedVariant.price) : Number(product.price);
@@ -485,14 +361,17 @@ export function ShopProvider({ children }) {
             : item
         );
       }
-      return [...prevCart, {
-        ...product,
-        cartItemId,
-        selectedVariant,
-        price: finalPrice,
-        oldPrice: finalOldPrice,
-        quantity
-      }];
+      return [
+        ...prevCart,
+        {
+          ...product,
+          cartItemId,
+          selectedVariant,
+          price: finalPrice,
+          oldPrice: finalOldPrice,
+          quantity
+        }
+      ];
     });
 
     setCartBadgeBump(true);
@@ -513,7 +392,6 @@ export function ShopProvider({ children }) {
     setCart((prevCart) =>
       prevCart
         .map((item) => {
-          // Fallback to item.id for backwards compatibility with old cart data
           const itemIdToMatch = item.cartItemId || item.id;
           if (itemIdToMatch === cartItemId) {
             const newQty = item.quantity + delta;
@@ -527,7 +405,7 @@ export function ShopProvider({ children }) {
 
   const removeFromCart = (cartItemId) => {
     setCart((prev) => prev.filter((item) => (item.cartItemId || item.id) !== cartItemId));
-    showToast("Item removed from cart");
+    showToast('Item removed from cart');
   };
 
   const clearCart = () => {
@@ -542,10 +420,10 @@ export function ShopProvider({ children }) {
       const exists = prev.includes(productId);
       let updated;
       if (exists) {
-        showToast("Removed from wishlist");
+        showToast('Removed from wishlist');
         updated = prev.filter((id) => id !== productId);
       } else {
-        showToast("Saved to wishlist!");
+        showToast('Saved to wishlist!');
         updated = [...prev, productId];
       }
       try {
@@ -557,133 +435,251 @@ export function ShopProvider({ children }) {
     });
   };
 
-  
-  const addProduct = (newProduct) => {
+  // PRODUCT CRUD (DIRECT FIRESTORE DOCUMENT OPERATIONS)
+  const addProduct = async (newProduct) => {
+    const prodId = newProduct.id || ('prod-' + Date.now());
     const productWithId = {
       ...newProduct,
-      id: newProduct.id || 'prod-' + Date.now(),
+      id: prodId,
+      productId: prodId,
+      price: Number(newProduct.price || 0),
+      stock: newProduct.stock !== undefined ? Number(newProduct.stock) : (newProduct.inStock !== false ? 10 : 0),
+      inStock: newProduct.inStock ?? true,
+      active: newProduct.active ?? true,
       rating: newProduct.rating || 5.0,
       reviewsCount: newProduct.reviewsCount || 1,
-      inStock: newProduct.inStock ?? true
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
-    const updated = [productWithId, ...products];
-    setProducts(updated);
-    syncToCloud({ products: updated });
-    showToast("Product added to store!");
+
+    try {
+      await setDoc(doc(db, 'products', prodId), productWithId);
+      setProducts((prev) => [productWithId, ...prev.filter((p) => p.id !== prodId)]);
+      showToast('Product added to store!');
+    } catch (err) {
+      console.error('Error adding product:', err);
+      alert('Failed to add product: ' + err.message);
+    }
     return productWithId;
   };
 
-  const updateProduct = (id, updatedFields) => {
-    const updated = products.map((item) => (item.id === id ? { ...item, ...updatedFields } : item));
-    setProducts(updated);
-    syncToCloud({ products: updated });
-    showToast("Product updated successfully!");
+  const updateProduct = async (id, updatedFields) => {
+    const updatedDoc = {
+      ...updatedFields,
+      updatedAt: new Date().toISOString()
+    };
+    if (updatedFields.price !== undefined) updatedDoc.price = Number(updatedFields.price);
+    if (updatedFields.stock !== undefined) {
+      updatedDoc.stock = Number(updatedFields.stock);
+      updatedDoc.inStock = updatedDoc.stock > 0;
+    }
+
+    try {
+      await setDoc(doc(db, 'products', id), updatedDoc, { merge: true });
+      setProducts((prev) => prev.map((item) => (item.id === id ? { ...item, ...updatedDoc } : item)));
+      showToast('Product updated successfully!');
+    } catch (err) {
+      console.error('Error updating product:', err);
+      alert('Failed to update product: ' + err.message);
+    }
   };
 
-  const deleteProduct = (id) => {
-    const updated = products.filter((item) => item.id !== id);
-    setProducts(updated);
-    syncToCloud({ products: updated });
-    showToast("Product deleted from store.");
+  const deleteProduct = async (id) => {
+    try {
+      await deleteDoc(doc(db, 'products', id));
+      setProducts((prev) => prev.filter((item) => item.id !== id));
+      showToast('Product deleted from store.');
+    } catch (err) {
+      console.error('Error deleting product:', err);
+      alert('Failed to delete product: ' + err.message);
+    }
   };
 
-  const toggleProductStock = (id) => {
-    const updated = products.map((item) =>
-      item.id === id ? { ...item, inStock: item.inStock === false ? true : false } : item
-    );
-    setProducts(updated);
-    syncToCloud({ products: updated });
-    const target = updated.find((p) => p.id === id);
-    showToast(`"${target?.name?.slice(0, 20)}..." marked ${target?.inStock ? 'In Stock' : 'Out of Stock'}`);
+  const toggleProductStock = async (id) => {
+    const target = products.find((p) => p.id === id);
+    if (!target) return;
+    const newInStock = target.inStock === false ? true : false;
+    const newStock = newInStock ? 10 : 0;
+    try {
+      await updateDoc(doc(db, 'products', id), {
+        inStock: newInStock,
+        stock: newStock,
+        updatedAt: new Date().toISOString()
+      });
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, inStock: newInStock, stock: newStock } : p)));
+      showToast(`"${target.name.slice(0, 20)}..." marked ${newInStock ? 'In Stock' : 'Out of Stock'}`);
+    } catch (err) {
+      console.error('Error updating product stock:', err);
+    }
   };
 
-  const toggleProductBestSeller = (id) => {
-    const updated = products.map((item) =>
-      item.id === id ? { ...item, isBestSeller: !item.isBestSeller } : item
-    );
-    setProducts(updated);
-    syncToCloud({ products: updated });
-    const target = updated.find((p) => p.id === id);
-    showToast(`"${target?.name?.slice(0, 20)}..." Best Seller ${target?.isBestSeller ? 'enabled' : 'disabled'}`);
+  const toggleProductBestSeller = async (id) => {
+    const target = products.find((p) => p.id === id);
+    if (!target) return;
+    const newVal = !target.isBestSeller;
+    try {
+      await updateDoc(doc(db, 'products', id), {
+        isBestSeller: newVal,
+        updatedAt: new Date().toISOString()
+      });
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, isBestSeller: newVal } : p)));
+      showToast(`"${target.name.slice(0, 20)}..." Best Seller ${newVal ? 'enabled' : 'disabled'}`);
+    } catch (err) {
+      console.error('Error updating best seller:', err);
+    }
   };
 
-  const toggleProductFeatured = (id) => {
-    const updated = products.map((item) =>
-      item.id === id ? { ...item, isFeatured: !item.isFeatured } : item
-    );
-    setProducts(updated);
-    syncToCloud({ products: updated });
-    const target = updated.find((p) => p.id === id);
-    showToast(`"${target?.name?.slice(0, 20)}..." Featured ${target?.isFeatured ? 'enabled' : 'disabled'}`);
+  const toggleProductFeatured = async (id) => {
+    const target = products.find((p) => p.id === id);
+    if (!target) return;
+    const newVal = !target.isFeatured;
+    try {
+      await updateDoc(doc(db, 'products', id), {
+        isFeatured: newVal,
+        updatedAt: new Date().toISOString()
+      });
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, isFeatured: newVal } : p)));
+      showToast(`"${target.name.slice(0, 20)}..." Featured ${newVal ? 'enabled' : 'disabled'}`);
+    } catch (err) {
+      console.error('Error updating featured status:', err);
+    }
   };
 
-  
-  const addOrder = (orderData) => {
-    const updated = [orderData, ...orders];
-    setOrders(updated);
-    syncToCloud({ orders: updated });
+  // ORDER CREATION WITH ATOMIC TRANSACTION & SAFE STOCK DECREMENT
+  const addOrder = async (orderData) => {
+    const generatedOrderId = orderData.orderId || ('GM-' + Math.floor(100000 + Math.random() * 900000));
+
+    const itemsWithPrice = (orderData.items || []).map((item) => ({
+      id: item.id || item.productId || `item-${Date.now()}`,
+      productId: item.id || item.productId || `item-${Date.now()}`,
+      name: item.name || 'Product',
+      price: Number(item.price || 0),
+      priceAtPurchase: Number(item.priceAtPurchase || item.price || 0),
+      quantity: Number(item.quantity || 1),
+      subtotal: Number(item.price || 0) * Number(item.quantity || 1),
+      image: item.image || item.imageUrl || '',
+      hsnCode: item.hsnCode || '2309',
+      gstRate: item.gstRate !== undefined ? Number(item.gstRate) : 18
+    }));
+
+    const subtotal = Number(orderData.subtotal || orderData.total || 0);
+    const delivery = Number(orderData.delivery || 0);
+    const total = Number(orderData.total || (subtotal + delivery));
+
+    const finalOrder = {
+      ...orderData,
+      orderId: generatedOrderId,
+      id: generatedOrderId,
+      items: itemsWithPrice,
+      subtotal,
+      delivery,
+      total,
+      paymentMethod: orderData.paymentMethod || 'Online Payment (UPI/QR on WhatsApp)',
+      paymentStatus: orderData.paymentStatus || 'Paid',
+      status: orderData.status || 'Pending Confirmation',
+      createdAt: orderData.createdAt || new Date().toISOString(),
+      date: orderData.date || new Date().toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      }),
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      const orderDocRef = doc(db, 'orders', generatedOrderId);
+
+      // Execute transaction for atomic order creation and stock update
+      await runTransaction(db, async (transaction) => {
+        const existingOrderSnap = await transaction.get(orderDocRef);
+        if (existingOrderSnap.exists()) {
+          return;
+        }
+
+        // Deduct stock for each product
+        for (const item of finalOrder.items) {
+          if (item.productId) {
+            const productRef = doc(db, 'products', item.productId);
+            const prodSnap = await transaction.get(productRef);
+            if (prodSnap.exists()) {
+              const prodData = prodSnap.data();
+              const currentStock = prodData.stock !== undefined ? Number(prodData.stock) : 10;
+              const newStock = Math.max(0, currentStock - item.quantity);
+              transaction.update(productRef, {
+                stock: newStock,
+                inStock: newStock > 0,
+                updatedAt: new Date().toISOString()
+              });
+            }
+          }
+        }
+
+        // Write order document
+        transaction.set(orderDocRef, finalOrder);
+      });
+
+      // Update local state
+      setOrders((prev) => [finalOrder, ...prev.filter((o) => o.orderId !== generatedOrderId)]);
+      setCloudSyncStatus('connected');
+      return { success: true, order: finalOrder };
+    } catch (err) {
+      console.error('Firestore order creation error:', err);
+      setCloudSyncStatus('fallback');
+      return { success: false, error: err.message, order: finalOrder };
+    }
   };
 
-  const updateOrderStatus = (orderId, newStatus) => {
-    const updated = orders.map((ord) =>
-      ord.orderId === orderId ? { ...ord, status: newStatus } : ord
-    );
-    setOrders(updated);
-    syncToCloud({ orders: updated });
-    showToast(`Order #${orderId} marked as ${newStatus}`);
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      await updateDoc(doc(db, 'orders', orderId), {
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      });
+      setOrders((prev) => prev.map((ord) => (ord.orderId === orderId ? { ...ord, status: newStatus } : ord)));
+      showToast(`Order #${orderId} marked as ${newStatus}`);
+    } catch (err) {
+      console.error('Error updating order status:', err);
+    }
   };
 
-  const requestOrderReturn = (orderId, reason) => {
+  const requestOrderReturn = async (orderId, reason) => {
     const targetOrder = orders.find((ord) => ord.orderId === orderId);
     if (!targetOrder) {
-      showToast("Order not found");
+      showToast('Order not found');
       return false;
     }
 
     const returnRequestedAt = new Date().toISOString();
-    const updated = orders.map((ord) =>
-      ord.orderId === orderId
-        ? {
-            ...ord,
-            status: "Return Requested",
-            returnRequestedAt,
-            returnReason: reason
-          }
-        : ord
-    );
-    setOrders(updated);
-    syncToCloud({ orders: updated });
-    showToast(`Return requested for Order #${orderId}`);
-
-    // Send return notification to admin (email + WhatsApp)
     try {
-      fetch('/api/send-return', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId,
-          customer: targetOrder.customer,
-          items: targetOrder.items,
-          total: targetOrder.total,
-          reason,
-          returnRequestedAt
-        })
-      }).catch((err) => console.warn('Return notification failed:', err));
-    } catch (e) {
-      console.warn('Return notification error:', e);
+      await updateDoc(doc(db, 'orders', orderId), {
+        status: 'Return Requested',
+        returnRequestedAt,
+        returnReason: reason,
+        updatedAt: returnRequestedAt
+      });
+      setOrders((prev) =>
+        prev.map((ord) =>
+          ord.orderId === orderId ? { ...ord, status: 'Return Requested', returnRequestedAt, returnReason: reason } : ord
+        )
+      );
+      showToast(`Return requested for Order #${orderId}`);
+      return true;
+    } catch (err) {
+      console.error('Error requesting return:', err);
+      return false;
     }
-
-    return true;
   };
 
-  const deleteOrder = (orderId) => {
-    const updated = orders.filter((ord) => ord.orderId !== orderId);
-    setOrders(updated);
-    syncToCloud({ orders: updated });
-    showToast("Order removed.");
+  const deleteOrder = async (orderId) => {
+    try {
+      await deleteDoc(doc(db, 'orders', orderId));
+      setOrders((prev) => prev.filter((ord) => ord.orderId !== orderId));
+      showToast('Order removed.');
+    } catch (err) {
+      console.error('Error deleting order:', err);
+    }
   };
 
-  
   const addInquiry = (inquiryData) => {
     const newInq = {
       id: inquiryData.id || 'inq-' + Date.now(),
@@ -702,7 +698,6 @@ export function ShopProvider({ children }) {
     };
     const updated = [newInq, ...inquiries];
     setInquiries(updated);
-    syncToCloud({ inquiries: updated });
     return newInq;
   };
 
@@ -711,18 +706,16 @@ export function ShopProvider({ children }) {
       inq.id === inquiryId ? { ...inq, status: newStatus } : inq
     );
     setInquiries(updated);
-    syncToCloud({ inquiries: updated });
     showToast(`Inquiry marked as ${newStatus}`);
   };
 
   const deleteInquiry = (inquiryId) => {
     const updated = inquiries.filter((inq) => inq.id !== inquiryId);
     setInquiries(updated);
-    syncToCloud({ inquiries: updated });
-    showToast("Inquiry removed.");
+    showToast('Inquiry removed.');
   };
 
-  const setBusinessInfo = (newInfo) => {
+  const setBusinessInfo = async (newInfo) => {
     const rawPhone = (newInfo.phone || '').replace(/\D/g, '');
     const cleanPhone = rawPhone.length === 12 && rawPhone.startsWith('91') ? rawPhone.slice(2) : rawPhone;
     const formattedPhone = cleanPhone.length === 10
@@ -751,28 +744,20 @@ export function ShopProvider({ children }) {
     setBusinessInfoState(formatted);
     try {
       localStorage.setItem('gargee_business_info', JSON.stringify(formatted));
+      await setDoc(doc(db, 'settings', 'store_config'), { businessInfo: formatted }, { merge: true });
     } catch (e) {
       console.warn(e);
     }
-    syncToCloud({ businessInfo: formatted });
     return formatted;
   };
 
-  
   const resetAllDataToDefault = () => {
     setProducts(INITIAL_PRODUCTS);
     setCategories(INITIAL_CATEGORIES);
     setBusinessInfoState(INITIAL_BUSINESS_INFO);
     setOrders(INITIAL_ORDERS);
     setInquiries(INITIAL_INQUIRIES);
-    syncToCloud({
-      products: INITIAL_PRODUCTS,
-      categories: INITIAL_CATEGORIES,
-      businessInfo: INITIAL_BUSINESS_INFO,
-      orders: INITIAL_ORDERS,
-      inquiries: INITIAL_INQUIRIES
-    });
-    showToast("Store data restored to factory defaults.");
+    showToast('Store data restored to local defaults.');
   };
 
   const navigateTo = (page, params = {}) => {
@@ -829,7 +814,6 @@ export function ShopProvider({ children }) {
         isAdminLoggedIn,
         isAdminAuthLoading,
         cloudSyncStatus,
-        syncToCloud,
         setIsAdminLoggedIn,
         customerLogin,
         customerLogout,

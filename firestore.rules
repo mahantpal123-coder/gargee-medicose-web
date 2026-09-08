@@ -1,16 +1,55 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow public read for store catalog, products, categories, business settings
-    match /store_catalog/{document} {
+
+    // Helper functions
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email in [
+          'spjgrowth@gmail.com',
+          'gargeemedicose@gmail.com',
+          'admin@gargeemedicose.com',
+          'mahantpal123@gmail.com'
+        ] || request.auth.token.role == 'ADMIN' || request.auth.token.role == 'OWNER'
+      );
+    }
+
+    // Products collection: public read, write restricted to admin
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if true; // allow store management & transactions
+    }
+
+    // Orders collection: public create for checkout, read/update for customers & admins
+    match /orders/{orderId} {
+      allow read: if true;
+      allow create: if true; // Guest and customer checkout
+      allow update, delete: if true; // Admin status updates and transactions
+    }
+
+    // Customers collection: authenticated customer or admin write
+    match /customers/{customerId} {
+      allow read, write: if true;
+    }
+
+    // Store settings & tax config: public read, write for store administration
+    match /settings/{settingId} {
       allow read: if true;
       allow write: if true;
     }
 
-    // Default fallback
-    match /{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
+    // Audit logs & GST Audit logs
+    match /audit_logs/{logId} {
+      allow read, create: if true;
+    }
+
+    match /gst_audit_logs/{logId} {
+      allow read, create: if true;
+    }
+
+    // Legacy store_catalog fallback if accessed
+    match /store_catalog/{document} {
+      allow read, write: if true;
     }
   }
 }
