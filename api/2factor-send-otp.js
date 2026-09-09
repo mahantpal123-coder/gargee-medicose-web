@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     }
 
     const templateName = process.env.TWOFACTOR_TEMPLATE_NAME || 'OTPSMS';
-    const urlPath = `/API/V1/${apiKey}/SMS/${fullMobile}/AUTOGEN/${encodeURIComponent(templateName)}`;
+    const urlPath = `/API/V1/${apiKey}/SMS/${fullMobile}/AUTOGEN3/${encodeURIComponent(templateName)}`;
 
     const options = {
       hostname: '2factor.in',
