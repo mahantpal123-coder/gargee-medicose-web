@@ -61,10 +61,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Please enter the OTP code.' });
     }
 
-    const fast2smsKey = process.env.FAST2SMS_API_KEY || '';
-    const twoFactorKey = process.env.TWOFACTOR_API_KEY || process.env.VITE_TWOFACTOR_API_KEY || '';
-    const secretKeys = [fast2smsKey, twoFactorKey, 'gargee_sms_otp_secret'].filter(Boolean);
-
+    const apiKey = process.env.TWOFACTOR_API_KEY || process.env.VITE_TWOFACTOR_API_KEY || '';
     let isVerified = false;
     let verifyErrorMsg = '';
 
@@ -76,27 +73,21 @@ export default async function handler(req, res) {
     else if (sessionId && sessionId.length > 20) {
       try {
         const decoded = JSON.parse(Buffer.from(sessionId, 'base64url').toString('utf8'));
+        const secret = apiKey || 'gargee_sms_otp_secret';
         const payload = `${cleanPhone}:${cleanOtp}:${decoded.expiresAt}`;
+        const expectedSig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 
-        for (const secret of secretKeys) {
-          const expectedSig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-          if (
-            decoded.phone === cleanPhone &&
-            decoded.otp === cleanOtp &&
-            Date.now() <= decoded.expiresAt &&
-            crypto.timingSafeEqual(Buffer.from(decoded.signature), Buffer.from(expectedSig))
-          ) {
-            isVerified = true;
-            break;
-          }
-        }
-
-        if (!isVerified) {
-          if (Date.now() > (decoded.expiresAt || 0)) {
-            verifyErrorMsg = 'OTP code expired. Please request a new OTP.';
-          } else {
-            verifyErrorMsg = 'Invalid OTP code. Please enter the code received via SMS.';
-          }
+        if (
+          decoded.phone === cleanPhone &&
+          decoded.otp === cleanOtp &&
+          Date.now() <= decoded.expiresAt &&
+          crypto.timingSafeEqual(Buffer.from(decoded.signature), Buffer.from(expectedSig))
+        ) {
+          isVerified = true;
+        } else if (Date.now() > (decoded.expiresAt || 0)) {
+          verifyErrorMsg = 'OTP code expired. Please request a new OTP.';
+        } else {
+          verifyErrorMsg = 'Invalid OTP code. Please enter the 6-digit code received via SMS.';
         }
       } catch (err) {
         verifyErrorMsg = 'Invalid OTP session payload.';

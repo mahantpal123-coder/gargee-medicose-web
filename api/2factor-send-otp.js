@@ -1,4 +1,5 @@
 import https from 'https';
+import crypto from 'crypto';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -22,6 +23,7 @@ export default async function handler(req, res) {
     }
 
     const apiKey = process.env.TWOFACTOR_API_KEY || process.env.VITE_TWOFACTOR_API_KEY || '';
+    const templateName = process.env.TWOFACTOR_TEMPLATE_NAME || '';
     const fullMobile = `91${cleanPhone}`;
 
     // Test mode fallback if no API key configured
@@ -35,11 +37,13 @@ export default async function handler(req, res) {
       });
     }
 
-    // Official 2Factor SMS OTP API endpoint enforcing SMS channel and optional custom DLT Template
-    const templateName = process.env.TWOFACTOR_TEMPLATE_NAME || '';
+    // Generate 6-digit SMS OTP code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Pure Text SMS endpoint (NEVER AUTOGEN, NEVER VOICE)
     const urlPath = templateName
-      ? `/API/V1/${apiKey}/SMS/${fullMobile}/AUTOGEN/${encodeURIComponent(templateName)}?channel=SMS`
-      : `/API/V1/${apiKey}/SMS/${fullMobile}/AUTOGEN?channel=SMS`;
+      ? `/API/V1/${apiKey}/SMS/${fullMobile}/${otpCode}/${encodeURIComponent(templateName)}`
+      : `/API/V1/${apiKey}/SMS/${fullMobile}/${otpCode}`;
 
     const options = {
       hostname: '2factor.in',
@@ -62,14 +66,26 @@ export default async function handler(req, res) {
 
     if (tfResult.Status !== 'Success') {
       return res.status(400).json({
-        error: tfResult.Details || '2Factor failed to send SMS OTP. Check SMS credit balance or API key.'
+        error: tfResult.Details || '2Factor failed to send SMS OTP. Check SMS credit balance.'
       });
     }
+
+    // Create HMAC signed session for SMS OTP verification
+    const secret = apiKey;
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+    const payload = `${cleanPhone}:${otpCode}:${expiresAt}`;
+    const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    const sessionId = Buffer.from(JSON.stringify({
+      phone: cleanPhone,
+      otp: otpCode,
+      expiresAt,
+      signature
+    })).toString('base64url');
 
     return res.status(200).json({
       success: true,
       message: `OTP sent successfully to +91 ${cleanPhone} via SMS`,
-      sessionId: tfResult.Details,
+      sessionId: sessionId,
       phone: cleanPhone
     });
   } catch (err) {
