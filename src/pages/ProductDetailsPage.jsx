@@ -78,7 +78,11 @@ export default function ProductDetailsPage() {
 
   const displayPrice = selectedVariant ? Number(selectedVariant.price) : product.price;
   const displayOldPrice = selectedVariant && selectedVariant.oldPrice ? Number(selectedVariant.oldPrice) : product.oldPrice;
-  const displayInStock = selectedVariant ? selectedVariant.inStock !== false : product.inStock !== false;
+  const availableStock = selectedVariant && selectedVariant.stock !== undefined
+    ? Number(selectedVariant.stock)
+    : (product.stock !== undefined ? Number(product.stock) : (product.inStock !== false ? 10 : 0));
+  const displayInStock = availableStock > 0 && (selectedVariant ? selectedVariant.inStock !== false : product.inStock !== false);
+  const isLowStock = displayInStock && availableStock <= 5;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-10 pb-28 md:pb-12">
@@ -165,14 +169,19 @@ export default function ProductDetailsPage() {
               </div>
               <span className="text-slate-400">({product.reviewsCount} reviews)</span>
               {!displayInStock ? (
-                <span className="text-rose-600 font-bold ml-auto sm:ml-0 flex items-center gap-1">
+                <span className="text-rose-600 font-bold ml-auto sm:ml-0 flex items-center gap-1 bg-rose-50 px-2.5 py-1 rounded-full text-xs border border-rose-200">
                   <AlertCircle className="w-3.5 h-3.5" />
                   Out of Stock
                 </span>
+              ) : isLowStock ? (
+                <span className="text-amber-700 font-black ml-auto sm:ml-0 flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-full text-xs border border-amber-200 animate-pulse">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                  Only {availableStock} left in stock - order soon!
+                </span>
               ) : (
-                <span className="text-emerald-600 font-bold ml-auto sm:ml-0 flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  In Stock
+                <span className="text-emerald-700 font-bold ml-auto sm:ml-0 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-full text-xs border border-emerald-200">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  In Stock ({availableStock} available)
                 </span>
               )}
             </div>
@@ -217,9 +226,9 @@ export default function ProductDetailsPage() {
             <span className="text-xs font-bold text-slate-600">Quantity:</span>
             <div className="flex items-center border border-slate-200 rounded-full bg-slate-50 p-0.5">
               <button
-                disabled={product.inStock === false}
+                disabled={!displayInStock || quantity <= 1}
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-7 h-7 rounded-full bg-white text-slate-700 font-bold flex items-center justify-center text-xs disabled:opacity-50"
+                className="w-7 h-7 rounded-full bg-white text-slate-700 font-bold flex items-center justify-center text-xs disabled:opacity-40 cursor-pointer"
               >
                 -
               </button>
@@ -227,9 +236,9 @@ export default function ProductDetailsPage() {
                 {quantity}
               </span>
               <button
-                disabled={product.inStock === false}
-                onClick={() => setQuantity(quantity + 1)}
-                className="w-7 h-7 rounded-full bg-white text-slate-700 font-bold flex items-center justify-center text-xs disabled:opacity-50"
+                disabled={!displayInStock || quantity >= availableStock}
+                onClick={() => setQuantity(Math.min(availableStock, quantity + 1))}
+                className="w-7 h-7 rounded-full bg-white text-slate-700 font-bold flex items-center justify-center text-xs disabled:opacity-40 cursor-pointer"
               >
                 +
               </button>

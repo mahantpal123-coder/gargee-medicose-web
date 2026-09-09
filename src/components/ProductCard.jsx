@@ -26,30 +26,36 @@ export default function ProductCard({ product }) {
     setTimeout(() => setIsHeartAnimating(false), 500);
   };
 
-  // Determine display price
+  // Determine display price and stock
   const displayPrice = product.variants?.length > 0 ? Number(product.variants[0].price) : product.price;
   const displayOldPrice = product.variants?.length > 0 ? (product.variants[0].oldPrice ? Number(product.variants[0].oldPrice) : null) : product.oldPrice;
   const hasVariants = product.variants?.length > 0;
-  const isOutOfStock = hasVariants ? product.variants[0].inStock === false : product.inStock === false;
+  const availableStock = hasVariants
+    ? (product.variants[0].stock !== undefined ? Number(product.variants[0].stock) : (product.variants[0].inStock !== false ? 10 : 0))
+    : (product.stock !== undefined ? Number(product.stock) : (product.inStock !== false ? 10 : 0));
+  const isOutOfStock = availableStock <= 0 || (hasVariants ? product.variants[0].inStock === false : product.inStock === false);
+  const isLowStock = !isOutOfStock && availableStock <= 5;
 
   return (
     <div className="group bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-slate-200 hover:border-sky-400 shadow-sm hover:shadow-xl transition-all duration-200 flex flex-col justify-between h-[410px] sm:h-[400px] relative overflow-hidden select-none">
-      {}
+      {/* Product Image Box */}
       <div
         onClick={() => navigateTo('product', { productId: product.id })}
         className="relative w-full h-[210px] sm:h-[190px] rounded-xl sm:rounded-2xl bg-slate-50 p-2 flex items-center justify-center cursor-pointer overflow-hidden shrink-0 border border-slate-100"
       >
-        {displayOldPrice && !isOutOfStock && (
-          <span className="absolute top-2.5 left-2.5 bg-rose-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full z-10 shadow-xs">
-            Save ₹{displayOldPrice - displayPrice}
-          </span>
-        )}
-
-        {isOutOfStock && (
+        {isOutOfStock ? (
           <span className="absolute top-2.5 left-2.5 bg-slate-900 text-white text-xs font-black px-2.5 py-0.5 rounded-full z-10 shadow-xs">
             Out of Stock
           </span>
-        )}
+        ) : isLowStock ? (
+          <span className="absolute top-2.5 left-2.5 bg-amber-500 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full z-10 shadow-xs animate-pulse">
+            Only {availableStock} Left!
+          </span>
+        ) : displayOldPrice ? (
+          <span className="absolute top-2.5 left-2.5 bg-rose-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full z-10 shadow-xs">
+            Save ₹{displayOldPrice - displayPrice}
+          </span>
+        ) : null}
 
         <button
           onClick={handleWishlistClick}
@@ -69,9 +75,19 @@ export default function ProductCard({ product }) {
         </button>
 
         <img
-          src={product.image}
+          src={product.image || product.imageUrl || 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=500&q=80'}
           alt={product.name}
-          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+          className={`w-full h-full transition-transform duration-300 sm:object-contain sm:scale-100 sm:group-hover:scale-105 ${
+            product.imageFit === 'cover'
+              ? 'max-sm:object-cover max-sm:group-hover:scale-105'
+              : product.imageFit === 'scale'
+              ? 'max-sm:object-cover max-sm:scale-110 max-sm:group-hover:scale-125'
+              : 'max-sm:object-contain max-sm:group-hover:scale-105'
+          }`}
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=500&q=80';
+          }}
           loading="lazy"
         />
       </div>

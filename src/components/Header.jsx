@@ -204,9 +204,9 @@ export default function Header() {
               </span>
             </button>
 
-            {}
+            {/* Saved Wishlist Button */}
             <button
-              onClick={() => navigateTo('shop')}
+              onClick={() => navigateTo('wishlist')}
               aria-label="Wishlist"
               className={`hidden sm:flex relative p-2.5 text-slate-700 hover:text-rose-600 bg-slate-100 hover:bg-rose-50 rounded-full transition cursor-pointer ${
                 wishlistBadgeBump ? 'scale-110 ring-2 ring-rose-300' : ''

@@ -100,6 +100,7 @@ export default function AdminPage() {
     productType: '',
     price: '',
     oldPrice: '',
+    stock: 10,
     image: '',
     gallery: [],
     variants: [],
@@ -243,6 +244,7 @@ export default function AdminPage() {
       price: '',
       oldPrice: '',
       image: 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?auto=format&fit=crop&w=600&q=80',
+      imageFit: 'contain',
       gallery: [],
       variants: [],
       description: '',
@@ -262,7 +264,9 @@ export default function AdminPage() {
       productType: product.productType || '',
       price: product.price,
       oldPrice: product.oldPrice || '',
+      stock: product.stock !== undefined ? Number(product.stock) : (product.inStock !== false ? 10 : 0),
       image: product.image,
+      imageFit: product.imageFit || 'contain',
       gallery: product.gallery && Array.isArray(product.gallery) ? product.gallery : (product.image ? [product.image] : []),
       variants: product.variants || [],
       description: product.description,
@@ -404,11 +408,14 @@ export default function AdminPage() {
       ? [primaryImage, ...currentGallery.filter((img) => img !== primaryImage)]
       : [primaryImage, ...currentGallery];
 
+    const stockVal = Math.max(0, Number(productForm.stock !== undefined ? productForm.stock : (productForm.inStock ? 10 : 0)));
     const payload = {
       ...(editingProduct || {}),
       ...productForm,
       price: Number(productForm.price),
       oldPrice: productForm.oldPrice ? Number(productForm.oldPrice) : null,
+      stock: stockVal,
+      inStock: stockVal > 0,
       variants: productForm.variants.filter(v => v.size && v.price), // clean up empty variants
       image: primaryImage,
       gallery: finalGallery
@@ -1203,23 +1210,38 @@ export default function AdminPage() {
                         )}
                       </td>
                       <td className="py-3 px-4">
-                        <button
-                          type="button"
-                          onClick={() => toggleProductStock(product.id)}
-                          className={`text-[10px] font-extrabold px-3 py-1 rounded-full transition inline-flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${
-                            product.inStock !== false
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100'
-                              : 'bg-rose-50 text-rose-700 border border-rose-300 hover:bg-rose-100'
-                          }`}
-                          title="Click to toggle Stock Status"
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              product.inStock !== false ? 'bg-emerald-500' : 'bg-rose-500'
-                            }`}
-                          />
-                          <span>{product.inStock !== false ? 'In Stock' : 'Out of Stock'}</span>
-                        </button>
+                        {(() => {
+                          const stockCount = product.stock !== undefined ? Number(product.stock) : (product.inStock !== false ? 10 : 0);
+                          const isLow = stockCount > 0 && stockCount <= 5;
+                          const isAvailable = stockCount > 0 && product.inStock !== false;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => toggleProductStock(product.id)}
+                              className={`text-[10px] font-extrabold px-3 py-1 rounded-full transition inline-flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 ${
+                                !isAvailable
+                                  ? 'bg-rose-50 text-rose-700 border border-rose-300 hover:bg-rose-100'
+                                  : isLow
+                                  ? 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
+                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100'
+                              }`}
+                              title="Click to toggle Stock Status"
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  !isAvailable ? 'bg-rose-500' : isLow ? 'bg-amber-500' : 'bg-emerald-500'
+                                }`}
+                              />
+                              <span>
+                                {!isAvailable
+                                  ? 'Out of Stock (0)'
+                                  : isLow
+                                  ? `Only ${stockCount} Left!`
+                                  : `${stockCount} In Stock`}
+                              </span>
+                            </button>
+                          );
+                        })()}
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -1748,7 +1770,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="font-bold text-slate-700">Selling Price (₹) *</label>
                   <input
@@ -1769,6 +1791,21 @@ export default function AdminPage() {
                     value={productForm.oldPrice}
                     onChange={(e) => setProductForm({ ...productForm, oldPrice: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Available Stock (Units) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 15"
+                    value={productForm.stock !== undefined ? productForm.stock : (productForm.inStock ? 10 : 0)}
+                    onChange={(e) => {
+                      const val = Math.max(0, parseInt(e.target.value) || 0);
+                      setProductForm({ ...productForm, stock: val, inStock: val > 0 });
+                    }}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sky-700"
                   />
                 </div>
               </div>
@@ -1971,6 +2008,25 @@ export default function AdminPage() {
                     Add URL
                   </button>
                 </div>
+              </div>
+
+              {/* Image Display Size / Fit Mode */}
+              <div className="space-y-1 bg-sky-50/60 p-3 rounded-2xl border border-sky-100">
+                <label className="font-bold text-slate-800 text-xs block">
+                  Product Image Display Style / Size
+                </label>
+                <select
+                  value={productForm.imageFit || 'contain'}
+                  onChange={(e) => setProductForm({ ...productForm, imageFit: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-sky-200 rounded-xl font-bold text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                >
+                  <option value="contain">Fit Inside Container (Standard - No Crop)</option>
+                  <option value="cover">Fill Full Frame (Cover / Full Card View)</option>
+                  <option value="scale">Enlarged Zoomed View (Full & Scaled)</option>
+                </select>
+                <p className="text-[10px] text-slate-500 font-medium">
+                  Choose "Fill Full Frame" or "Enlarged Zoomed View" if you want this product's image to show larger like Pedigree.
+                </p>
               </div>
 
               <div className="space-y-1">

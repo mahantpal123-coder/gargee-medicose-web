@@ -22,9 +22,13 @@ export default function ShopPage() {
     setSearchQuery
   } = useShop();
 
+  const maxProductPrice = useMemo(() => {
+    return Math.max(...products.map((p) => Number(p.price || 0)), 100000);
+  }, [products]);
+
   const [selectedBrand, setSelectedBrand] = useState('all');
-  const [priceRange, setPriceRange] = useState(5000);
-  const [sortBy, setSortBy] = useState('popular'); 
+  const [priceRange, setPriceRange] = useState(100000);
+  const [sortBy, setSortBy] = useState('popular');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   
@@ -64,7 +68,7 @@ export default function ShopPage() {
   const resetFilters = () => {
     setSelectedCategory(null);
     setSelectedBrand('all');
-    setPriceRange(5000);
+    setPriceRange(maxProductPrice);
     setSearchQuery('');
     setSortBy('popular');
   };
@@ -97,7 +101,6 @@ export default function ShopPage() {
             <span>Filters</span>
           </button>
 
-          {}
           <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-full border border-slate-200 shadow-sm text-xs font-bold">
             <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
             <span className="text-slate-400 hidden sm:inline">Sort:</span>

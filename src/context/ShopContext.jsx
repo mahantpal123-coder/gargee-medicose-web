@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '../firebase.js';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, signInWithCustomToken } from 'firebase/auth';
 import {
   doc,
   collection,
@@ -322,7 +322,41 @@ export function ShopProvider({ children }) {
 
   const customerLogin = (customerData) => {
     setCurrentCustomer(customerData);
+    try {
+      localStorage.setItem('gargee_customer', JSON.stringify(customerData));
+    } catch (e) {}
     showToast(`Welcome back, ${customerData.name || 'Pet Parent'}!`);
+  };
+
+  const customerOtpLogin = async (otpResult) => {
+    const { uid, phone, fullPhone, customToken } = otpResult;
+    const cleanPhone = phone || String(fullPhone || '').replace(/\D/g, '').slice(-10);
+    const targetUid = uid || `phone_91${cleanPhone}`;
+
+    if (customToken) {
+      try {
+        await signInWithCustomToken(auth, customToken);
+      } catch (err) {
+        console.warn('Firebase Custom Token sign-in warning:', err.message);
+      }
+    }
+
+    const newCustomer = {
+      uid: targetUid,
+      name: `Pet Parent (+91 ${cleanPhone})`,
+      phone: cleanPhone,
+      fullPhone: fullPhone || `+91${cleanPhone}`,
+      phoneVerified: true,
+      authProvider: '2factor_otp',
+      joinedDate: new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+    };
+
+    setCurrentCustomer(newCustomer);
+    try {
+      localStorage.setItem('gargee_customer', JSON.stringify(newCustomer));
+    } catch (e) {}
+    showToast(`Mobile +91 ${cleanPhone} verified successfully!`);
+    return newCustomer;
   };
 
   const customerLogout = async () => {
@@ -394,7 +428,16 @@ export function ShopProvider({ children }) {
         .map((item) => {
           const itemIdToMatch = item.cartItemId || item.id;
           if (itemIdToMatch === cartItemId) {
+            const prod = products.find((p) => p.id === (item.productId || item.id));
+            const availableStock = item.selectedVariant?.stock !== undefined
+              ? Number(item.selectedVariant.stock)
+              : (prod?.stock !== undefined ? Number(prod.stock) : 10);
+
             const newQty = item.quantity + delta;
+            if (delta > 0 && newQty > availableStock) {
+              showToast(`Only ${availableStock} units available in stock`);
+              return { ...item, quantity: availableStock };
+            }
             return newQty > 0 ? { ...item, quantity: newQty } : null;
           }
           return item;
@@ -549,18 +592,38 @@ export function ShopProvider({ children }) {
   const addOrder = async (orderData) => {
     const generatedOrderId = orderData.orderId || ('GM-' + Math.floor(100000 + Math.random() * 900000));
 
-    const itemsWithPrice = (orderData.items || []).map((item) => ({
-      id: item.id || item.productId || `item-${Date.now()}`,
-      productId: item.id || item.productId || `item-${Date.now()}`,
-      name: item.name || 'Product',
-      price: Number(item.price || 0),
-      priceAtPurchase: Number(item.priceAtPurchase || item.price || 0),
-      quantity: Number(item.quantity || 1),
-      subtotal: Number(item.price || 0) * Number(item.quantity || 1),
-      image: item.image || item.imageUrl || '',
-      hsnCode: item.hsnCode || '2309',
-      gstRate: item.gstRate !== undefined ? Number(item.gstRate) : 18
-    }));
+    const itemsWithPrice = (orderData.items || []).map((item) => {
+      const unitPrice = Number(item.price || item.priceAtPurchase || 0);
+      const qty = Math.max(1, Number(item.quantity || 1));
+      const discount = Number(item.discount || 0);
+      const gstRate = item.gstRate !== undefined ? Number(item.gstRate) : 18;
+      const sku = item.sku || item.id || item.productId || '';
+      const hsnCode = item.hsnCode || item.hsn || '2309';
+
+      const lineTotal = Math.max(0, unitPrice * qty - discount);
+      const taxAmount = Math.round((lineTotal * gstRate) / (100 + gstRate) * 100) / 100;
+      const taxableValue = Math.round((lineTotal - taxAmount) * 100) / 100;
+
+      return {
+        id: item.id || item.productId || `item-${Date.now()}`,
+        productId: item.productId || item.id || '',
+        name: item.name || 'Product',
+        sku: sku,
+        quantity: qty,
+        price: unitPrice,
+        unitPrice: unitPrice,
+        priceAtPurchase: unitPrice,
+        discount: discount,
+        gstRate: gstRate,
+        hsnCode: hsnCode,
+        hsn: hsnCode,
+        taxableValue: taxableValue,
+        taxAmount: taxAmount,
+        subtotal: unitPrice * qty,
+        lineTotal: lineTotal,
+        image: item.image || item.imageUrl || ''
+      };
+    });
 
     const subtotal = Number(orderData.subtotal || orderData.total || 0);
     const delivery = Number(orderData.delivery || 0);
@@ -591,30 +654,67 @@ export function ShopProvider({ children }) {
 
       // Execute transaction for atomic order creation and stock update
       await runTransaction(db, async (transaction) => {
+        // --- PHASE 1: ALL READS FIRST ---
+        // 1. Read existing order document for idempotency check
         const existingOrderSnap = await transaction.get(orderDocRef);
         if (existingOrderSnap.exists()) {
           return;
         }
 
-        // Deduct stock for each product
+        // 2. Map and accumulate required quantities per product ID
+        const productQtyMap = new Map();
         for (const item of finalOrder.items) {
           if (item.productId) {
-            const productRef = doc(db, 'products', item.productId);
-            const prodSnap = await transaction.get(productRef);
-            if (prodSnap.exists()) {
-              const prodData = prodSnap.data();
-              const currentStock = prodData.stock !== undefined ? Number(prodData.stock) : 10;
-              const newStock = Math.max(0, currentStock - item.quantity);
-              transaction.update(productRef, {
-                stock: newStock,
-                inStock: newStock > 0,
-                updatedAt: new Date().toISOString()
-              });
-            }
+            const currentQty = productQtyMap.get(item.productId) || 0;
+            productQtyMap.set(item.productId, currentQty + item.quantity);
           }
         }
 
-        // Write order document
+        const uniqueProductIds = Array.from(productQtyMap.keys());
+
+        // 3. Perform ALL transaction reads in parallel before any writes
+        const productSnapshots = await Promise.all(
+          uniqueProductIds.map((prodId) => transaction.get(doc(db, 'products', prodId)))
+        );
+
+        const prodSnapMap = new Map();
+        uniqueProductIds.forEach((prodId, idx) => {
+          prodSnapMap.set(prodId, productSnapshots[idx]);
+        });
+
+        // --- PHASE 2: VALIDATE EVERYTHING IN MEMORY ---
+        const stockUpdates = [];
+
+        for (const [prodId, requiredQty] of productQtyMap.entries()) {
+          const prodSnap = prodSnapMap.get(prodId);
+          if (prodSnap && prodSnap.exists()) {
+            const prodData = prodSnap.data();
+            const currentStock = prodData.stock !== undefined ? Number(prodData.stock) : 10;
+
+            if (currentStock < requiredQty) {
+              throw new Error(`Insufficient stock for ${prodData.name || prodId}. Available: ${currentStock}, Required: ${requiredQty}`);
+            }
+
+            const newStock = Math.max(0, currentStock - requiredQty);
+            stockUpdates.push({
+              ref: doc(db, 'products', prodId),
+              newStock,
+              inStock: newStock > 0
+            });
+          }
+        }
+
+        // --- PHASE 3: ALL WRITES AFTER READS ---
+        // 1. Update stock for all products
+        for (const update of stockUpdates) {
+          transaction.update(update.ref, {
+            stock: update.newStock,
+            inStock: update.inStock,
+            updatedAt: new Date().toISOString()
+          });
+        }
+
+        // 2. Write order document
         transaction.set(orderDocRef, finalOrder);
       });
 
@@ -625,7 +725,12 @@ export function ShopProvider({ children }) {
     } catch (err) {
       console.error('Firestore order creation error:', err);
       setCloudSyncStatus('fallback');
-      return { success: false, error: err.message, order: finalOrder };
+
+      const userFriendlyError = err.message?.includes('Insufficient stock')
+        ? err.message
+        : 'Order placement failed. Please try again. Your payment and stock have not been duplicated.';
+
+      return { success: false, error: userFriendlyError, rawError: err.message, order: finalOrder };
     }
   };
 
@@ -816,6 +921,7 @@ export function ShopProvider({ children }) {
         cloudSyncStatus,
         setIsAdminLoggedIn,
         customerLogin,
+        customerOtpLogin,
         customerLogout,
         adminLogout,
         addToCart,

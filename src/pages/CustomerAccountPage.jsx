@@ -126,9 +126,17 @@ export default function CustomerAccountPage() {
             {currentCustomer.name.charAt(0).toUpperCase()}
           </div>
           <div>
-            <span className="text-[10px] font-extrabold uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full inline-block">
-              Pet Parent Member
-            </span>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full inline-block">
+                Pet Parent Member
+              </span>
+              {currentCustomer.phoneVerified && (
+                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-emerald-400 text-emerald-950 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 shadow-sm">
+                  <ShieldCheck className="w-3 h-3" />
+                  <span>Verified Phone</span>
+                </span>
+              )}
+            </div>
             <h1 className="font-heading text-2xl font-black mt-1">
               {currentCustomer.name}
             </h1>
@@ -140,7 +148,7 @@ export default function CustomerAccountPage() {
                 </span>
               )}
               {currentCustomer.phone && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 font-semibold">
                   <Phone className="w-3.5 h-3.5" />
                   <span>+91 {currentCustomer.phone}</span>
                 </span>

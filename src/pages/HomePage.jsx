@@ -19,8 +19,10 @@ export default function HomePage() {
   const { navigateTo, products, categories, businessInfo } = useShop();
   const carouselRef = useRef(null);
 
-  const bestSellers = products.filter((p) => p.isBestSeller && p.inStock);
-  const featuredProducts = products.slice(0, 8);
+  const bestSellers = products.filter((p) => p.isBestSeller && p.inStock).length > 0
+    ? products.filter((p) => p.isBestSeller && p.inStock)
+    : products.filter((p) => p.inStock !== false);
+  const featuredProducts = products.filter((p) => p.inStock !== false).slice(0, 12);
 
   return (
     <div className="space-y-8 sm:space-y-12 pb-12">

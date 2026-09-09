@@ -14,11 +14,13 @@ import CustomerLoginPage from './pages/CustomerLoginPage';
 import CustomerAccountPage from './pages/CustomerAccountPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import WishlistPage from './pages/WishlistPage';
 import {
   Home,
   Grid,
   ShoppingBag,
   ShoppingCart,
+  Heart,
   User,
   CheckCircle2,
   Lock,
@@ -66,6 +68,8 @@ export default function App() {
         return <CustomerLoginPage />;
       case 'account':
         return <CustomerAccountPage />;
+      case 'wishlist':
+        return <WishlistPage />;
       case 'terms':
         return <TermsPage />;
       case 'privacy':
@@ -151,7 +155,7 @@ export default function App() {
           <span className="text-[11px] mt-1 font-bold">Home</span>
         </button>
 
-        {}
+        {/* Shop Button */}
         <button
           onClick={() => navigateTo('shop')}
           className={`flex flex-col items-center justify-center flex-1 py-1.5 transition ${
@@ -160,6 +164,17 @@ export default function App() {
         >
           <ShoppingBag className="w-6 h-6" />
           <span className="text-[11px] mt-1 font-bold">Shop</span>
+        </button>
+
+        {/* Wishlist Button */}
+        <button
+          onClick={() => navigateTo('wishlist')}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 relative transition ${
+            currentPage === 'wishlist' ? 'text-rose-600 font-black' : 'text-slate-600 font-bold'
+          }`}
+        >
+          <Heart className="w-6 h-6" />
+          <span className="text-[11px] mt-1 font-bold">Liked</span>
         </button>
 
         {}
