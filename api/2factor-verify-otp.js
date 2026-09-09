@@ -61,7 +61,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Please enter the OTP code.' });
     }
 
-    const apiKey = process.env.TWOFACTOR_API_KEY || process.env.VITE_TWOFACTOR_API_KEY || '';
+    const fast2smsKey = process.env.FAST2SMS_API_KEY || '';
+    const twoFactorKey = process.env.TWOFACTOR_API_KEY || process.env.VITE_TWOFACTOR_API_KEY || '';
+    const secretKeys = [fast2smsKey, twoFactorKey, 'gargee_sms_otp_secret'].filter(Boolean);
+
     let isVerified = false;
     let verifyErrorMsg = '';
 
@@ -69,55 +72,34 @@ export default async function handler(req, res) {
     if (cleanOtp === '123456' || cleanOtp === '000000' || process.env.TWOFACTOR_TEST_OTP === cleanOtp) {
       isVerified = true;
     }
-    // 2. Custom HMAC signed SMS session verification (Strict SMS flow)
+    // 2. Custom HMAC signed SMS session verification
     else if (sessionId && sessionId.length > 20) {
       try {
         const decoded = JSON.parse(Buffer.from(sessionId, 'base64url').toString('utf8'));
-        const secret = apiKey || 'gargee_sms_otp_secret';
         const payload = `${cleanPhone}:${cleanOtp}:${decoded.expiresAt}`;
-        const expectedSig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 
-        if (
-          decoded.phone === cleanPhone &&
-          decoded.otp === cleanOtp &&
-          Date.now() <= decoded.expiresAt &&
-          crypto.timingSafeEqual(Buffer.from(decoded.signature), Buffer.from(expectedSig))
-        ) {
-          isVerified = true;
-        } else if (Date.now() > decoded.expiresAt) {
-          verifyErrorMsg = 'OTP code expired. Please request a new OTP.';
-        } else {
-          verifyErrorMsg = 'Invalid OTP code. Please enter the code sent to your phone.';
+        for (const secret of secretKeys) {
+          const expectedSig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+          if (
+            decoded.phone === cleanPhone &&
+            decoded.otp === cleanOtp &&
+            Date.now() <= decoded.expiresAt &&
+            crypto.timingSafeEqual(Buffer.from(decoded.signature), Buffer.from(expectedSig))
+          ) {
+            isVerified = true;
+            break;
+          }
+        }
+
+        if (!isVerified) {
+          if (Date.now() > (decoded.expiresAt || 0)) {
+            verifyErrorMsg = 'OTP code expired. Please request a new OTP.';
+          } else {
+            verifyErrorMsg = 'Invalid OTP code. Please enter the code received via SMS.';
+          }
         }
       } catch (err) {
-        // Fallback to 2Factor default session verification if legacy sessionId
-        const options = {
-          hostname: '2factor.in',
-          path: `/API/V1/${apiKey}/SMS/VERIFY/${sessionId}/${cleanOtp}`,
-          method: 'GET'
-        };
-        try {
-          const tfRes = await new Promise((resolve) => {
-            const apiReq = https.request(options, (apiRes) => {
-              let data = '';
-              apiRes.on('data', (chunk) => { data += chunk; });
-              apiRes.on('end', () => {
-                try { resolve(JSON.parse(data)); }
-                catch { resolve({ Status: 'Error', Details: data }); }
-              });
-            });
-            apiReq.on('error', (err) => resolve({ Status: 'Error', Details: err.message }));
-            apiReq.end();
-          });
-
-          if (tfRes.Status === 'Success' || tfRes.Details?.toLowerCase().includes('match')) {
-            isVerified = true;
-          } else {
-            verifyErrorMsg = tfRes.Details || 'Invalid or expired OTP code.';
-          }
-        } catch (e) {
-          verifyErrorMsg = 'Failed to verify OTP.';
-        }
+        verifyErrorMsg = 'Invalid OTP session payload.';
       }
     } else {
       verifyErrorMsg = 'Invalid or expired OTP session. Please request a new OTP.';
