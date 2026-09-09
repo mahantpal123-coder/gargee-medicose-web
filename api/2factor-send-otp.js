@@ -38,7 +38,7 @@ export default async function handler(req, res) {
 
     // Generate random 6-digit SMS OTP code
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const urlPath = `/API/V1/${apiKey}/SMS/${fullMobile}/${otpCode}`;
+    const urlPath = `/API/V1/${apiKey}/SMS/${fullMobile}/${otpCode}/SMS`;
 
     const options = {
       hostname: '2factor.in',
