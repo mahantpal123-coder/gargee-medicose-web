@@ -1,4 +1,5 @@
 import https from 'https';
+import crypto from 'crypto';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -28,15 +29,16 @@ export default async function handler(req, res) {
     if (!apiKey) {
       return res.status(200).json({
         success: true,
-        message: `OTP sent (Test mode: Use 123456 to login)`,
+        message: `OTP sent via SMS (Test mode: Use 123456 to login)`,
         sessionId: `test_session_${Date.now()}`,
         phone: cleanPhone,
         testMode: true
       });
     }
 
-    const templateName = process.env.TWOFACTOR_TEMPLATE_NAME || 'OTPSMS';
-    const urlPath = `/API/V1/${apiKey}/SMS/${fullMobile}/AUTOGEN3/${encodeURIComponent(templateName)}`;
+    // Generate random 6-digit SMS OTP code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const urlPath = `/API/V1/${apiKey}/SMS/${fullMobile}/${otpCode}`;
 
     const options = {
       hostname: '2factor.in',
@@ -59,18 +61,30 @@ export default async function handler(req, res) {
 
     if (tfResult.Status !== 'Success') {
       return res.status(400).json({
-        error: tfResult.Details || '2Factor failed to send OTP. Check API key or SMS credits.'
+        error: tfResult.Details || '2Factor failed to send SMS OTP. Check API key or SMS credits.'
       });
     }
 
+    // Sign secure HMAC session payload for SMS OTP verification
+    const secret = apiKey;
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
+    const payload = `${cleanPhone}:${otpCode}:${expiresAt}`;
+    const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    const sessionId = Buffer.from(JSON.stringify({
+      phone: cleanPhone,
+      otp: otpCode,
+      expiresAt,
+      signature
+    })).toString('base64url');
+
     return res.status(200).json({
       success: true,
-      message: `OTP sent successfully to +91 ${cleanPhone}`,
-      sessionId: tfResult.Details,
+      message: `OTP sent successfully to +91 ${cleanPhone} via SMS`,
+      sessionId: sessionId,
       phone: cleanPhone
     });
   } catch (err) {
-    console.error('Error sending 2Factor OTP:', err);
-    return res.status(500).json({ error: 'Server error while sending OTP. Please try again.' });
+    console.error('Error sending 2Factor SMS OTP:', err);
+    return res.status(500).json({ error: 'Server error while sending SMS OTP. Please try again.' });
   }
 }
