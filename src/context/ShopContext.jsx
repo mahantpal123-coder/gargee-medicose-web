@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '../firebase.js';
-import { onAuthStateChanged, signOut, signInWithCustomToken } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import {
   doc,
   collection,
@@ -326,37 +326,6 @@ export function ShopProvider({ children }) {
       localStorage.setItem('gargee_customer', JSON.stringify(customerData));
     } catch (e) {}
     showToast(`Welcome back, ${customerData.name || 'Pet Parent'}!`);
-  };
-
-  const customerOtpLogin = async (otpResult) => {
-    const { uid, phone, fullPhone, customToken } = otpResult;
-    const cleanPhone = phone || String(fullPhone || '').replace(/\D/g, '').slice(-10);
-    const targetUid = uid || `phone_91${cleanPhone}`;
-
-    if (customToken) {
-      try {
-        await signInWithCustomToken(auth, customToken);
-      } catch (err) {
-        console.warn('Firebase Custom Token sign-in warning:', err.message);
-      }
-    }
-
-    const newCustomer = {
-      uid: targetUid,
-      name: `Pet Parent (+91 ${cleanPhone})`,
-      phone: cleanPhone,
-      fullPhone: fullPhone || `+91${cleanPhone}`,
-      phoneVerified: true,
-      authProvider: '2factor_otp',
-      joinedDate: new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
-    };
-
-    setCurrentCustomer(newCustomer);
-    try {
-      localStorage.setItem('gargee_customer', JSON.stringify(newCustomer));
-    } catch (e) {}
-    showToast(`Mobile +91 ${cleanPhone} verified successfully!`);
-    return newCustomer;
   };
 
   const customerLogout = async () => {
@@ -921,7 +890,6 @@ export function ShopProvider({ children }) {
         cloudSyncStatus,
         setIsAdminLoggedIn,
         customerLogin,
-        customerOtpLogin,
         customerLogout,
         adminLogout,
         addToCart,

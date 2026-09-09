@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useShop } from '../context/ShopContext';
-import TwoFactorOtpLogin from '../components/TwoFactorOtpLogin';
 import { auth } from '../firebase';
 import {
   signInWithEmailAndPassword,
@@ -23,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function CustomerLoginPage() {
-  const { currentCustomer, customerLogin, customerOtpLogin, customerLogout, navigateTo, showToast } = useShop();
+  const { currentCustomer, customerLogin, customerLogout, navigateTo, showToast } = useShop();
 
   const [mode, setMode] = useState('login'); 
   const [email, setEmail] = useState('');
@@ -266,22 +265,7 @@ export default function CustomerLoginPage() {
 
         {}
         {mode !== 'forgot' && (
-          <div className="grid grid-cols-3 bg-slate-100 p-1 rounded-2xl text-[11px] font-bold">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('otp');
-                setErrorMsg('');
-                setInfoMsg('');
-              }}
-              className={`py-2 rounded-xl transition ${
-                mode === 'otp'
-                  ? 'bg-sky-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Mobile OTP
-            </button>
+          <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-2xl text-xs font-bold">
             <button
               type="button"
               onClick={() => {
@@ -316,16 +300,7 @@ export default function CustomerLoginPage() {
         )}
 
         {}
-        {mode === 'otp' ? (
-          <TwoFactorOtpLogin
-            compact={true}
-            onSuccess={async (otpResult) => {
-              await customerOtpLogin(otpResult);
-              navigateTo('account');
-            }}
-          />
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           {mode === 'register' && (
             <>
               <div className="space-y-1">
@@ -465,7 +440,6 @@ export default function CustomerLoginPage() {
             </button>
           )}
         </form>
-        )}
       </div>
     </div>
   );
