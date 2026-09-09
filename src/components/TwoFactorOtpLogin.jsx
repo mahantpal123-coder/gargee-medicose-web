@@ -40,7 +40,7 @@ export default function TwoFactorOtpLogin({ onSuccess, onCancel, compact = false
     if (result.success) {
       setStep('input_otp');
       setSessionId(result.sessionId || '');
-      setSuccessMsg(result.message || `OTP sent to +91 ${result.phone}`);
+      setSuccessMsg(result.message || `OTP sent to +91 ${result.phone} via SMS.`);
       setResendTimer(30);
     } else {
       setErrorMsg(result.error || 'Failed to send OTP. Check mobile number.');
