@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { useShop } from '../context/ShopContext';
 import ProductCard from '../components/ProductCard';
+import HeroSlider from '../components/HeroSlider';
 import {
   ArrowRight,
   ShieldCheck,
@@ -26,49 +27,7 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8 sm:space-y-12 pb-12">
-      {}
-      <section className="relative overflow-hidden bg-gradient-to-b from-sky-100 via-sky-50 to-white px-4 pt-6 pb-6 sm:py-12">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-4 items-center min-h-[320px] sm:min-h-[380px]">
-          {}
-          <div className="md:col-span-7 space-y-3 sm:space-y-4 text-center sm:text-left z-10">
-            <span className="inline-block bg-white/90 border border-sky-200 text-sky-700 px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold shadow-2xs">
-              🐾 Bilaspur's Trusted Pet Store
-            </span>
-
-            {}
-            <h1 className="font-heading text-[28px] sm:text-4xl lg:text-5xl font-black text-slate-900 leading-[1.15] tracking-tight">
-              Everything Your Pet Needs
-            </h1>
-
-            {}
-            <p className="text-[14px] sm:text-base font-semibold text-slate-600">
-              Food • Care • Accessories
-            </p>
-
-            {}
-            <div className="pt-2 flex justify-center sm:justify-start w-full sm:w-auto">
-              <button
-                onClick={() => navigateTo('shop')}
-                className="w-full sm:w-auto h-[50px] sm:h-[46px] px-8 bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white rounded-2xl sm:rounded-full font-heading font-extrabold text-base sm:text-[15px] shadow-lg shadow-sky-500/25 flex items-center justify-center gap-2 active:scale-95 transition cursor-pointer"
-              >
-                <span>Shop Catalog Now</span>
-                <ArrowRight className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          {}
-          <div className="md:col-span-5 flex justify-center mt-2 sm:mt-0">
-            <div className="relative w-48 h-48 sm:w-72 sm:h-72 rounded-3xl overflow-hidden shadow-lg border-2 border-white bg-sky-200/40">
-              <img
-                src="https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=600&q=80"
-                alt="Happy Golden Retriever Pet"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
+      <HeroSlider />
 
       {}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -124,7 +83,7 @@ export default function HomePage() {
               Best Sellers
             </h2>
             <p className="text-[12px] text-slate-500">
-              Top picks for dogs and cats in Bilaspur
+              Top picks for dogs and cats across India
             </p>
           </div>
           <button
@@ -321,7 +280,7 @@ export default function HomePage() {
                 Tick & Flea Prevention Guide
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Protect your dogs and cats from Bilaspur's warm climate ticks with safe medicated shampoos and sprays.
+                Protect your dogs and cats from ticks and fleas with safe medicated shampoos and sprays.
               </p>
             </div>
             <button
@@ -363,7 +322,7 @@ export default function HomePage() {
             Pet Parent Reviews
           </span>
           <h2 className="font-heading text-[20px] sm:text-[24px] font-bold text-slate-900">
-            Loved by Pet Lovers Across Bilaspur
+            Loved by Pet Lovers Across India
           </h2>
         </div>
 
@@ -371,11 +330,11 @@ export default function HomePage() {
           <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-2xs space-y-3">
             <div className="flex text-amber-400 text-xs">★★★★★</div>
             <p className="text-xs text-slate-600 italic leading-relaxed">
-              "Gargee Medicose is the only shop in Bilaspur where I get genuine Royal Canin Maxi and vet-prescribed liver tonics all in one place. Excellent service!"
+              "Gargee Medicose is the only store where I get genuine Royal Canin Maxi and vet-prescribed liver tonics all in one place. Excellent service!"
             </p>
             <div className="border-t border-slate-100 pt-2 text-xs">
               <p className="font-bold text-slate-900">Dr. Rajesh Agrawal</p>
-              <p className="text-[11px] text-slate-400">Nehru Nagar, Bilaspur</p>
+              <p className="text-[11px] text-slate-400">Happy Customer</p>
             </div>
           </div>
 
@@ -386,18 +345,18 @@ export default function HomePage() {
             </p>
             <div className="border-t border-slate-100 pt-2 text-xs">
               <p className="font-bold text-slate-900">Sneha Dewangan</p>
-              <p className="text-[11px] text-slate-400">Vyapar Vihar, Bilaspur</p>
+              <p className="text-[11px] text-slate-400">Verified Buyer</p>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-2xs space-y-3">
             <div className="flex text-amber-400 text-xs">★★★★★</div>
             <p className="text-xs text-slate-600 italic leading-relaxed">
-              "Best prices on Whiskas cat food and Me-O treats in Bilaspur. Right opposite Shyam Mandir, very convenient location and fresh stock."
+              "Best prices on Whiskas cat food and Me-O treats. Very convenient ordering online and fresh stock every time."
             </p>
             <div className="border-t border-slate-100 pt-2 text-xs">
               <p className="font-bold text-slate-900">Amitabh Sen</p>
-              <p className="text-[11px] text-slate-400">Shanichari Bazar, Bilaspur</p>
+              <p className="text-[11px] text-slate-400">Pet Parent</p>
             </div>
           </div>
         </div>
@@ -411,7 +370,7 @@ export default function HomePage() {
               Why Choose Gargee Medicose
             </h2>
             <p className="text-xs text-slate-500">
-              Serving pet parents in Bilaspur with care & trust
+              Serving pet parents across India with care & trust
             </p>
           </div>
 
@@ -437,7 +396,7 @@ export default function HomePage() {
             <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-1 text-center">
               <Truck className="w-6 h-6 text-amber-500 mx-auto" />
               <h4 className="font-heading font-bold text-slate-800 text-xs sm:text-sm">Trusted Store</h4>
-              <p className="text-[11px] text-slate-400">Serving Bilaspur daily.</p>
+              <p className="text-[11px] text-slate-400">Serving pet parents daily.</p>
             </div>
           </div>
         </div>
@@ -449,7 +408,7 @@ export default function HomePage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-xl">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-sky-400 bg-white/10 px-2.5 py-1 rounded-full inline-block">
-                Visit Us in Bilaspur
+                Contact Us
               </span>
               <h2 className="font-heading text-xl sm:text-3xl font-black">
                 Need Help Choosing the Right Product?

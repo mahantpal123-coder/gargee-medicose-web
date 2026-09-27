@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Component } from 'react';
 import { useShop } from './context/ShopContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -15,25 +15,67 @@ import CustomerAccountPage from './pages/CustomerAccountPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import WishlistPage from './pages/WishlistPage';
+import TrackOrderPage from './pages/TrackOrderPage';
 import {
   Home,
-  Grid,
   ShoppingBag,
   ShoppingCart,
   Heart,
   User,
   CheckCircle2,
-  Lock,
   ArrowRight,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react';
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('App ErrorBoundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="max-w-2xl mx-auto my-16 p-8 bg-white rounded-3xl border border-rose-200 shadow-xl text-center space-y-4">
+          <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-8 h-8" />
+          </div>
+          <h2 className="font-heading font-extrabold text-2xl text-slate-800">Something went wrong</h2>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            {this.state.error?.message || 'An unexpected error occurred while displaying this page.'}
+          </p>
+          <div className="flex justify-center gap-3 pt-2">
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                window.location.href = '/';
+              }}
+              className="px-6 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-full text-xs font-bold transition shadow-md cursor-pointer"
+            >
+              Return to Home
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   const {
     currentPage,
     currentCustomer,
     cartCount,
-    toastMessage,
     lastAddedProduct,
     setLastAddedProduct,
     cartBadgeBump,
@@ -70,6 +112,8 @@ export default function App() {
         return <CustomerAccountPage />;
       case 'wishlist':
         return <WishlistPage />;
+      case 'track':
+        return <TrackOrderPage />;
       case 'terms':
         return <TermsPage />;
       case 'privacy':
@@ -80,8 +124,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 font-sans pb-16 md:pb-0">
-      {}
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-sky-50 via-blue-50 to-sky-100 text-slate-800 font-sans pb-16 md:pb-0">
+      {/* Toast popup */}
       {lastAddedProduct && (
         <aside
           aria-label="Item added to cart notification"
@@ -131,20 +175,21 @@ export default function App() {
         </aside>
       )}
 
-      {}
+      {/* Main Header */}
       <Header />
 
-      {}
+      {/* Main Page View with ErrorBoundary */}
       <main className="flex-grow">
-        {renderCurrentPage()}
+        <ErrorBoundary key={currentPage}>
+          {renderCurrentPage()}
+        </ErrorBoundary>
       </main>
 
-      {}
+      {/* Main Footer */}
       <Footer />
 
-      {}
+      {/* Mobile Navigation Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/98 backdrop-blur-md border-t border-slate-200 px-3 flex items-center justify-around h-18 shadow-2xl">
-        {}
         <button
           onClick={() => navigateTo('home')}
           className={`flex flex-col items-center justify-center flex-1 py-1.5 transition ${
@@ -155,7 +200,6 @@ export default function App() {
           <span className="text-[11px] mt-1 font-bold">Home</span>
         </button>
 
-        {/* Shop Button */}
         <button
           onClick={() => navigateTo('shop')}
           className={`flex flex-col items-center justify-center flex-1 py-1.5 transition ${
@@ -166,7 +210,6 @@ export default function App() {
           <span className="text-[11px] mt-1 font-bold">Shop</span>
         </button>
 
-        {/* Wishlist Button */}
         <button
           onClick={() => navigateTo('wishlist')}
           className={`flex flex-col items-center justify-center flex-1 py-1.5 relative transition ${
@@ -177,7 +220,6 @@ export default function App() {
           <span className="text-[11px] mt-1 font-bold">Liked</span>
         </button>
 
-        {}
         <button
           onClick={() => navigateTo(currentCustomer ? 'account' : 'login')}
           className={`flex flex-col items-center justify-center flex-1 py-1.5 transition ${
@@ -190,7 +232,6 @@ export default function App() {
           </span>
         </button>
 
-        {}
         <button
           onClick={() => navigateTo('cart')}
           className={`flex flex-col items-center justify-center flex-1 py-1.5 relative transition ${

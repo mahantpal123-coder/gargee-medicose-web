@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   Phone,
+  MessageSquare,
   Clock,
   ArrowRight,
   ChevronDown,
@@ -24,7 +25,8 @@ import {
   Flame,
   Award,
   ShoppingBag,
-  Tag
+  Tag,
+  Truck
 } from 'lucide-react';
 
 export default function Header() {
@@ -67,20 +69,20 @@ export default function Header() {
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 truncate">
             <span className="bg-white/20 rounded-full px-2.5 py-0.5 text-xs font-black uppercase tracking-wider shrink-0">
-              Bilaspur
+              PAN INDIA
             </span>
             <span className="truncate font-semibold">{businessInfo.announcement}</span>
           </div>
           <div className="hidden sm:flex items-center gap-5 text-xs font-semibold shrink-0">
-            <a href={`tel:${businessInfo.phone}`} className="flex items-center gap-1.5 hover:underline">
-              <Phone className="w-3.5 h-3.5" />
-              <span>{businessInfo.phoneFormatted}</span>
+            <a
+              href={businessInfo.whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:underline"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Customer Care Support</span>
             </a>
-            <span className="opacity-40">|</span>
-            <span className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" />
-              <span>9:30 AM - 9:30 PM</span>
-            </span>
           </div>
         </div>
       </div>
@@ -177,6 +179,16 @@ export default function Header() {
               }`}
             >
               Contact
+            </button>
+
+            <button
+              onClick={() => navigateTo('track')}
+              className={`px-4 py-2 rounded-xl transition cursor-pointer text-sm flex items-center gap-1.5 ${
+                currentPage === 'track' ? 'text-sky-600 bg-sky-50 font-black shadow-2xs' : 'hover:text-sky-600 hover:bg-slate-100'
+              }`}
+            >
+              <Truck className="w-3.5 h-3.5" />
+              <span>Track Order</span>
             </button>
           </nav>
 
@@ -424,17 +436,32 @@ export default function Header() {
               currentPage === 'contact' ? 'bg-sky-50 text-sky-600 font-black' : 'text-slate-700 hover:bg-slate-50'
             }`}
           >
-            Contact & Store Location
+            Contact Us
+          </button>
+
+          <button
+            onClick={() => {
+              navigateTo('track');
+              setMobileMenuOpen(false);
+            }}
+            className={`w-full text-left px-4 py-3 rounded-2xl font-bold text-sm transition flex items-center gap-2.5 ${
+              currentPage === 'track' ? 'bg-sky-50 text-sky-600 font-black' : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <Truck className="w-4 h-4 text-sky-600" />
+            <span>Track Delivery</span>
           </button>
 
           {}
           <div className="pt-3 border-t border-slate-100">
             <a
-              href={`tel:${businessInfo.phone}`}
-              className="w-full bg-sky-500 hover:bg-sky-600 text-white font-black py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2.5 shadow-md shadow-sky-500/20"
+              href={businessInfo.whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2.5 shadow-md shadow-emerald-600/20"
             >
-              <Phone className="w-4 h-4" />
-              <span>Call Store: {businessInfo.phoneFormatted}</span>
+              <MessageSquare className="w-4 h-4" />
+              <span>Customer Care Support</span>
             </a>
           </div>
         </div>

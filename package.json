@@ -6,12 +6,18 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "start": "node server.js",
     "preview": "vite preview"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "firebase": "^12.18.0",
+    "firebase-admin": "^13.2.0",
     "lucide-react": "^1.16.0",
+    "mysql2": "^3.24.4",
     "nodemailer": "^9.0.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

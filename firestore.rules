@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // Helper function to verify admin user privileges
     function isAdmin() {
       return request.auth != null && (
         request.auth.token.email in [
@@ -10,46 +10,55 @@ service cloud.firestore {
           'gargeemedicose@gmail.com',
           'admin@gargeemedicose.com',
           'mahantpal123@gmail.com'
-        ] || request.auth.token.role == 'ADMIN' || request.auth.token.role == 'OWNER'
+        ] || request.auth.token.role == 'ADMIN' || request.auth.token.role == 'OWNER' || request.auth.token.admin == true
       );
     }
 
-    // Products collection: public read, write restricted to admin
+    // Helper function to check if customer owns the resource
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Products collection: public read, write restricted strictly to admins
     match /products/{productId} {
       allow read: if true;
-      allow write: if true; // allow store management & transactions
+      allow create, update, delete: if isAdmin();
     }
 
-    // Orders collection: public create for checkout, read/update for customers & admins
+    // Orders collection: public create for guest/customer checkout, read & modify restricted to owner or admin
     match /orders/{orderId} {
-      allow read: if true;
-      allow create: if true; // Guest and customer checkout
-      allow update, delete: if true; // Admin status updates and transactions
+      allow read: if isAdmin() || (request.auth != null && resource.data.customer.uid == request.auth.uid);
+      allow create: if request.resource.data.total >= 0
+                    && request.resource.data.items is list
+                    && request.resource.data.customer.name is string
+                    && request.resource.data.customer.phone is string;
+      allow update, delete: if isAdmin();
     }
 
-    // Customers collection: authenticated customer or admin write
+    // Customers collection: user can only read/write their own profile, admin can read/write all
     match /customers/{customerId} {
-      allow read, write: if true;
+      allow read, write: if isOwner(customerId) || isAdmin();
     }
 
-    // Store settings & tax config: public read, write for store administration
+    // Store settings & tax config: public read, write strictly for store admins
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if true;
+      allow create, update, delete: if isAdmin();
     }
 
-    // Audit logs & GST Audit logs
+    // Audit logs & GST Audit logs: restricted strictly to admins
     match /audit_logs/{logId} {
-      allow read, create: if true;
+      allow read, create, update, delete: if isAdmin();
     }
 
     match /gst_audit_logs/{logId} {
-      allow read, create: if true;
+      allow read, create, update, delete: if isAdmin();
     }
 
-    // Legacy store_catalog fallback if accessed
+    // Legacy store_catalog fallback
     match /store_catalog/{document} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }

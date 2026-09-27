@@ -68,7 +68,7 @@ export default function CustomerLoginPage() {
       } else if (err.code === 'auth/cancelled-popup-request') {
         
       } else if (err.code === 'auth/unauthorized-domain') {
-        setErrorMsg('Domain not authorized in Firebase Console. Add gargee-medicose.vercel.app to Authentication > Settings > Authorized Domains.');
+        setErrorMsg('Domain not authorized in Firebase Console. Add your domain to Authentication > Settings > Authorized Domains.');
       } else if (err.code === 'auth/operation-not-allowed') {
         setErrorMsg('Google sign-in is not enabled in Firebase Console (Authentication > Sign-in method > Google).');
       } else {

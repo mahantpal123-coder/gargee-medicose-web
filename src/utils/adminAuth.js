@@ -9,13 +9,6 @@ import {
 } from 'firebase/auth';
 
 
-const DEFAULT_ADMIN_EMAILS = [
-  'mahantpal123@gmail.com',
-  'gargeemedicose@gmail.com',
-  'admin@gargeemedicose.com',
-  'mahantpal123@gmail.com'
-];
-
 export const getAdminEmails = () => {
   const envEmails = import.meta.env.VITE_ADMIN_EMAILS;
   if (envEmails) {
@@ -24,7 +17,7 @@ export const getAdminEmails = () => {
       .map((email) => email.trim().toLowerCase())
       .filter(Boolean);
   }
-  return DEFAULT_ADMIN_EMAILS.map((email) => email.toLowerCase());
+  return [];
 };
 
 export const verifyIsAdmin = async (user) => {

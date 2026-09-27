@@ -31,7 +31,7 @@ export default function PrivacyPolicyPage() {
             Privacy Policy
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Last Updated: August 2026 • Gargee Medicose, Bilaspur, Chhattisgarh
+            Last Updated: August 2026 • Gargee Medicose
           </p>
         </div>
       </div>
@@ -48,7 +48,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="list-disc pl-5 space-y-1 text-slate-600">
             <li>Contact details such as your full name, phone number, and email address.</li>
-            <li>Delivery address in Bilaspur and surrounding areas with pincode.</li>
+            <li>Delivery address across India with pincode.</li>
             <li>Order history, items purchased, and transaction references for online payment confirmation.</li>
           </ul>
         </section>
@@ -95,7 +95,7 @@ export default function PrivacyPolicyPage() {
             5. Contact Information
           </h2>
           <p>
-            If you have questions about our privacy practices, wish to update your details, or request deletion of your account, please reach out to us at <strong>{businessInfo.email || 'mahantpal123@gmail.com'}</strong> or <strong>{businessInfo.phoneFormatted}</strong>.
+            If you have questions about our privacy practices, wish to update your details, or request deletion of your account, please reach out to us at <strong>{businessInfo.email || 'mahantpal123@gmail.com'}</strong> or through our Customer Care Support on WhatsApp.
           </p>
         </section>
       </div>

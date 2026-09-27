@@ -3,18 +3,43 @@ import { useShop } from '../context/ShopContext';
 import { Star, ShoppingCart, Heart, Check } from 'lucide-react';
 
 export default function ProductCard({ product }) {
-  const { addToCart, toggleWishlist, wishlist, navigateTo } = useShop();
+  const { addToCart, toggleWishlist, wishlist, cart, navigateTo } = useShop();
   const [isJustAdded, setIsJustAdded] = useState(false);
   const [isHeartAnimating, setIsHeartAnimating] = useState(false);
-  const isWishlisted = wishlist.includes(product.id);
 
-  const handleAddToCart = () => {
-    // If variants exist, Quick Add defaults to the first variant
-    const defaultVariant = product.variants?.length > 0 ? product.variants[0] : null;
-    const isOutOfStock = defaultVariant ? defaultVariant.inStock === false : product.inStock === false;
+  if (!product) return null;
 
-    if (isOutOfStock) return;
-    addToCart(product, 1, defaultVariant);
+  const productId = product.id || product.productId || '';
+  const isWishlisted = Array.isArray(wishlist) ? wishlist.includes(productId) : false;
+
+  const variants = Array.isArray(product.variants) ? product.variants : [];
+  const hasVariants = variants.length > 0;
+  const firstVariant = hasVariants ? variants[0] : null;
+
+  const displayPrice = firstVariant
+    ? Number(firstVariant.price || 0)
+    : Number(product.price || 0);
+
+  const displayOldPrice = firstVariant
+    ? (firstVariant.oldPrice ? Number(firstVariant.oldPrice) : null)
+    : (product.oldPrice ? Number(product.oldPrice) : null);
+
+  const availableStock = firstVariant
+    ? (firstVariant.stock !== undefined ? Number(firstVariant.stock) : (firstVariant.inStock !== false ? 10 : 0))
+    : (product.stock !== undefined ? Number(product.stock) : (product.inStock !== false ? 10 : 0));
+
+  const isOutOfStock = availableStock <= 0 || (firstVariant ? firstVariant.inStock === false : product.inStock === false);
+  const isLowStock = !isOutOfStock && availableStock <= 5;
+
+  const cartItemId = firstVariant ? `${product.id}-${firstVariant.size}` : product.id;
+  const cartItem = Array.isArray(cart) ? cart.find((item) => item.cartItemId === cartItemId) : null;
+  const cartQuantity = cartItem ? cartItem.quantity : 0;
+  const isMaxInCart = cartQuantity >= availableStock;
+
+  const handleAddToCart = (e) => {
+    e.stopPropagation();
+    if (isOutOfStock || isMaxInCart) return;
+    addToCart(product, 1, firstVariant);
     setIsJustAdded(true);
     setTimeout(() => setIsJustAdded(false), 1200);
   };
@@ -22,27 +47,23 @@ export default function ProductCard({ product }) {
   const handleWishlistClick = (e) => {
     e.stopPropagation();
     setIsHeartAnimating(true);
-    toggleWishlist(product.id);
+    toggleWishlist(productId);
     setTimeout(() => setIsHeartAnimating(false), 500);
   };
 
-  // Determine display price and stock
-  const displayPrice = product.variants?.length > 0 ? Number(product.variants[0].price) : product.price;
-  const displayOldPrice = product.variants?.length > 0 ? (product.variants[0].oldPrice ? Number(product.variants[0].oldPrice) : null) : product.oldPrice;
-  const hasVariants = product.variants?.length > 0;
-  const availableStock = hasVariants
-    ? (product.variants[0].stock !== undefined ? Number(product.variants[0].stock) : (product.variants[0].inStock !== false ? 10 : 0))
-    : (product.stock !== undefined ? Number(product.stock) : (product.inStock !== false ? 10 : 0));
-  const isOutOfStock = availableStock <= 0 || (hasVariants ? product.variants[0].inStock === false : product.inStock === false);
-  const isLowStock = !isOutOfStock && availableStock <= 5;
+  const handleCardNavigate = () => {
+    if (productId) {
+      navigateTo('product', { productId });
+    }
+  };
 
   return (
-    <div className="group bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-slate-200 hover:border-sky-400 shadow-sm hover:shadow-xl transition-all duration-200 flex flex-col justify-between h-[410px] sm:h-[400px] relative overflow-hidden select-none">
+    <div
+      onClick={handleCardNavigate}
+      className="group bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-slate-200 hover:border-sky-400 shadow-sm hover:shadow-xl transition-all duration-200 flex flex-col justify-between h-[410px] sm:h-[400px] relative overflow-hidden select-none cursor-pointer"
+    >
       {/* Product Image Box */}
-      <div
-        onClick={() => navigateTo('product', { productId: product.id })}
-        className="relative w-full h-[210px] sm:h-[190px] rounded-xl sm:rounded-2xl bg-slate-50 p-2 flex items-center justify-center cursor-pointer overflow-hidden shrink-0 border border-slate-100"
-      >
+      <div className="relative w-full h-[210px] sm:h-[190px] rounded-xl sm:rounded-2xl bg-slate-50 p-2 flex items-center justify-center overflow-hidden shrink-0 border border-slate-100">
         {isOutOfStock ? (
           <span className="absolute top-2.5 left-2.5 bg-slate-900 text-white text-xs font-black px-2.5 py-0.5 rounded-full z-10 shadow-xs">
             Out of Stock
@@ -51,7 +72,7 @@ export default function ProductCard({ product }) {
           <span className="absolute top-2.5 left-2.5 bg-amber-500 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full z-10 shadow-xs animate-pulse">
             Only {availableStock} Left!
           </span>
-        ) : displayOldPrice ? (
+        ) : (displayOldPrice && displayOldPrice > displayPrice) ? (
           <span className="absolute top-2.5 left-2.5 bg-rose-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full z-10 shadow-xs">
             Save ₹{displayOldPrice - displayPrice}
           </span>
@@ -76,7 +97,7 @@ export default function ProductCard({ product }) {
 
         <img
           src={product.image || product.imageUrl || 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=500&q=80'}
-          alt={product.name}
+          alt={product.name || 'Product'}
           className={`w-full h-full transition-transform duration-300 sm:object-contain sm:scale-100 sm:group-hover:scale-105 ${
             product.imageFit === 'cover'
               ? 'max-sm:object-cover max-sm:group-hover:scale-105'
@@ -92,37 +113,32 @@ export default function ProductCard({ product }) {
         />
       </div>
 
-      {}
+      {/* Info Content */}
       <div className="flex-1 flex flex-col justify-between pt-2.5">
         <div className="space-y-1">
-          {}
           <span className="block text-xs font-extrabold text-sky-600 uppercase tracking-wider truncate">
-            {product.brand}
+            {product.brand || 'Gargee Medicose'}
           </span>
 
-          {}
           <h3
-            onClick={() => navigateTo('product', { productId: product.id })}
-            className="font-heading font-extrabold text-slate-900 text-sm sm:text-[15px] leading-snug line-clamp-2 hover:text-sky-600 cursor-pointer transition h-[38px] sm:h-[42px]"
+            className="font-heading font-extrabold text-slate-900 text-sm sm:text-[15px] leading-snug line-clamp-2 hover:text-sky-600 transition h-[38px] sm:h-[42px]"
             title={product.name}
           >
-            {product.name}
+            {product.name || 'Pet Product'}
           </h3>
 
-          {}
           <p className="text-xs text-slate-500 truncate font-medium">
-            {product.productType || product.description}
+            {product.productType || product.description || ''}
           </p>
         </div>
 
-        {}
+        {/* Pricing & Add to Cart */}
         <div className="pt-2.5 mt-auto border-t border-slate-100 space-y-2">
-          {}
           <div className="flex items-center justify-between">
             <div className="flex items-baseline gap-1.5 flex-wrap">
               {hasVariants && <span className="text-[10px] text-slate-500 font-bold">From</span>}
               <span className="font-heading font-black text-lg sm:text-xl text-slate-950 leading-none">
-                ₹{displayPrice.toLocaleString('en-IN')}
+                ₹{(displayPrice || 0).toLocaleString('en-IN')}
               </span>
               {displayOldPrice && (
                 <span className="text-xs text-slate-400 line-through font-semibold">
@@ -133,16 +149,15 @@ export default function ProductCard({ product }) {
 
             <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md font-extrabold text-xs shrink-0">
               <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-              <span>{product.rating}</span>
+              <span>{product.rating || 5.0}</span>
             </div>
           </div>
 
-          {}
           <button
             onClick={handleAddToCart}
-            disabled={isOutOfStock}
+            disabled={isOutOfStock || isMaxInCart}
             className={`w-full flex items-center justify-center gap-2 font-extrabold py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-xs sm:text-sm transition-all duration-200 ${
-              isOutOfStock
+              isOutOfStock || isMaxInCart
                 ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                 : isJustAdded
                 ? 'bg-emerald-500 text-white scale-98 shadow-md shadow-emerald-500/30'
@@ -157,7 +172,7 @@ export default function ProductCard({ product }) {
             ) : (
               <>
                 <ShoppingCart className="w-4 h-4" />
-                <span>{isOutOfStock ? 'Out of Stock' : 'Add to Cart'}</span>
+                <span>{isOutOfStock ? 'Out of Stock' : isMaxInCart ? `Max (${availableStock}) in Cart` : 'Add to Cart'}</span>
               </>
             )}
           </button>
@@ -166,4 +181,3 @@ export default function ProductCard({ product }) {
     </div>
   );
 }
-

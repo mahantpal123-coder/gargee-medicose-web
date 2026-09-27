@@ -36,28 +36,17 @@ export default function ContactPage() {
       message: formData.message
     });
 
-    
-    try {
-      fetch('https://formsubmit.co/ajax/mahantpal123@gmail.com', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json'
-        },
-        body: JSON.stringify({
-          _subject: `📩 New Customer Inquiry from ${formData.name} (${formData.phone})`,
-          _template: 'table',
-          _captcha: 'false',
-          'Customer Name': formData.name,
-          'Phone Number': formData.phone,
-          'Pet / Query Type': formData.petType,
-          'Message / Requirement': formData.message,
-          'Date & Time': new Date().toLocaleString('en-IN')
-        })
-      }).catch((err) => console.warn('Inquiry email fallback:', err));
-    } catch (e) {
-      console.warn(e);
-    }
+    // Send inquiry notification via backend SMTP
+    fetch('/api/send-inquiry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: formData.name,
+        phone: formData.phone,
+        petType: formData.petType,
+        message: formData.message
+      })
+    }).catch(() => {});
 
     setIsSubmitting(false);
     setFormSent(true);
@@ -75,7 +64,7 @@ export default function ContactPage() {
           Contact Gargee Medicose
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
-          Visit our store in Bilaspur or connect with us directly for product queries, medicine guidance, and wholesale supply.
+          Connect with us directly for product queries, medicine guidance, and wholesale supply. We deliver across India.
         </p>
       </div>
 
@@ -98,34 +87,29 @@ export default function ContactPage() {
                 <p className="text-slate-600 leading-relaxed">
                   {businessInfo.address}
                 </p>
-                <p className="text-sky-600 font-semibold">{businessInfo.city || 'Bilaspur'}, {businessInfo.state || 'Chhattisgarh'} - {businessInfo.pincode || '495001'}</p>
+                <p className="text-sky-600 font-semibold">Pan India Delivery</p>
               </div>
             </div>
 
             {}
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <Phone className="w-5 h-5" />
+                <MessageSquare className="w-5 h-5" />
               </div>
               <div className="space-y-1 text-xs">
-                <p className="font-bold text-slate-800 text-sm">Call & WhatsApp Support</p>
-                <p className="text-slate-600 font-bold text-base text-slate-900">
-                  {businessInfo.phoneFormatted}
+                <p className="font-bold text-slate-800 text-sm">Customer Care Support</p>
+                <p className="text-slate-500 text-xs">
+                  Instant assistance & orders via WhatsApp
                 </p>
-                <div className="flex gap-2 pt-1">
-                  <a
-                    href={`tel:${businessInfo.phone}`}
-                    className="bg-sky-500 hover:bg-sky-600 text-white font-bold px-3 py-1.5 rounded-full text-[11px] transition inline-block"
-                  >
-                    Call Now
-                  </a>
+                <div className="pt-1">
                   <a
                     href={businessInfo.whatsappUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-full text-[11px] transition inline-block"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-full text-xs transition inline-flex items-center gap-1.5 shadow-sm shadow-emerald-600/20"
                   >
-                    WhatsApp
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Customer Care Support</span>
                   </a>
                 </div>
               </div>
@@ -150,17 +134,6 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {}
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                <Clock className="w-5 h-5" />
-              </div>
-              <div className="space-y-1 text-xs">
-                <p className="font-bold text-slate-800 text-sm">Store Hours</p>
-                <p className="text-slate-600">Monday - Sunday: <strong>9:30 AM – 9:30 PM</strong></p>
-                <p className="text-emerald-600 font-semibold">Open 7 Days a Week</p>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -269,50 +242,6 @@ export default function ContactPage() {
         </div>
       </div>
 
-      {}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h3 className="font-heading font-bold text-slate-900 text-lg">
-              Find Our Store on Map
-            </h3>
-            <p className="text-xs text-slate-500">
-              Shop 4, Opposite Shyam Mandir, Juna Bilaspur Road, Shanichari Bazar, Bilaspur
-            </p>
-          </div>
-
-          <a
-            href="https://maps.app.goo.gl/SuMHgqCWg9aWHGGd7"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-600 hover:text-sky-800 bg-sky-50 px-4 py-2 rounded-full"
-          >
-            <MapPin className="w-4 h-4" />
-            <span>Open in Google Maps</span>
-          </a>
-        </div>
-
-        <div className="w-full h-80 sm:h-[400px] rounded-2xl overflow-hidden border border-slate-200 relative bg-slate-50">
-          {businessInfo.mapEmbedUrl ? (
-            <iframe
-              title="Gargee Medicose Location"
-              src={businessInfo.mapEmbedUrl}
-              className="w-full h-full border-0 absolute inset-0"
-              allowFullScreen=""
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            ></iframe>
-          ) : (
-            <iframe
-              title="Gargee Medicose Location"
-              src="https://maps.google.com/maps?q=Bilaspur,Chhattisgarh&t=&z=13&ie=UTF8&iwloc=&output=embed"
-              className="w-full h-full border-0 absolute inset-0"
-              allowFullScreen=""
-              loading="lazy"
-            ></iframe>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

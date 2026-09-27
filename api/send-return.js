@@ -82,7 +82,7 @@ export default async function handler(req, res) {
             </tr>
             <tr>
               <td style="font-weight: 600; color: #64748b;">Address:</td>
-              <td>${customer.address || ''}, ${customer.city || 'Bilaspur'}, ${customer.state || 'CG'} - ${customer.pincode || ''}</td>
+              <td>${customer.address || ''}, ${customer.city || ''}, ${customer.state || ''} - ${customer.pincode || ''}</td>
             </tr>
           </table>
         </div>
@@ -116,7 +116,7 @@ export default async function handler(req, res) {
       </div>
 
       <div style="background: #f1f5f9; padding: 16px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
-        Gargee Medicose Store System • Bilaspur, Chhattisgarh
+        Gargee Medicose Store System • Gargee Medicose
       </div>
     </div>
   </body>
@@ -176,7 +176,7 @@ export default async function handler(req, res) {
         try {
           await fetch(`https://formsubmit.co/ajax/${target}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json', Origin: 'https://gargee-medicose.vercel.app' },
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', Origin: process.env.FRONTEND_ORIGIN || req.headers.origin || 'http://localhost:3000' },
             body: JSON.stringify({
               _subject: subject,
               _template: 'table',

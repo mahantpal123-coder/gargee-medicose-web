@@ -31,7 +31,7 @@ export default function TermsPage() {
             Terms & Conditions
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Last Updated: August 2026 • Gargee Medicose, Bilaspur, Chhattisgarh
+            Last Updated: August 2026 • Gargee Medicose
           </p>
         </div>
       </div>
@@ -71,36 +71,20 @@ export default function TermsPage() {
         <section className="space-y-2">
           <h2 className="font-heading text-lg font-bold text-slate-900 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-sky-500"></span>
-            4. Delivery Terms in Bilaspur
+            4. Delivery Terms
           </h2>
           <p>
-            We offer prompt doorstep delivery across Bilaspur city and neighboring sectors. Free delivery applies to qualifying order amounts (₹1,000 and above). Orders are typically dispatched within 2 to 24 hours of payment verification.
+            We offer prompt doorstep delivery across India. Free delivery applies to qualifying order amounts (₹1,000 and above). Orders are typically dispatched within 2 to 24 hours of payment verification.
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="font-heading text-lg font-bold text-slate-900 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-sky-500"></span>
-            5. 2-Day Return & Replacement Policy
+            5. Contact & Support
           </h2>
           <p>
-            You have a <strong>2-day return window</strong> from the time of product delivery to request a return or replacement:
-          </p>
-          <ul className="list-disc pl-5 space-y-1 text-slate-600">
-            <li>Return or replacement requests must be submitted within 2 days (48 hours) of delivery.</li>
-            <li>Eligible for wrong items received, physical damage during transit, or manufacturing defects.</li>
-            <li>Items must remain unopened, in original packaging, and with safety seals intact.</li>
-            <li>Direct replacement or store credit refund will be processed upon quick verification by our Bilaspur team.</li>
-          </ul>
-        </section>
-
-        <section className="space-y-2">
-          <h2 className="font-heading text-lg font-bold text-slate-900 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-sky-500"></span>
-            6. Contact & Support
-          </h2>
-          <p>
-            For inquiries regarding our terms, order tracking, or bulk queries, contact our Bilaspur support desk at <strong>{businessInfo.phoneFormatted}</strong> or via email at <strong>{businessInfo.email || 'mahantpal123@gmail.com'}</strong>.
+            For inquiries regarding our terms, order tracking, or bulk queries, reach out to our Customer Care Support on WhatsApp or via email at <strong>{businessInfo.email || 'mahantpal123@gmail.com'}</strong>.
           </p>
         </section>
       </div>

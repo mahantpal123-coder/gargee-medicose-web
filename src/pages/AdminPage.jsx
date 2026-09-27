@@ -40,7 +40,8 @@ import {
   MessageSquare,
   X,
   Layers,
-  RotateCcw
+  RotateCcw,
+  Zap
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -54,7 +55,6 @@ export default function AdminPage() {
     isAdminLoggedIn,
     isAdminAuthLoading,
     cloudSyncStatus,
-    syncToCloud,
     adminLogout,
     addProduct,
     updateProduct,
@@ -114,6 +114,10 @@ export default function AdminPage() {
   const [productSearch, setProductSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   const [orderSearch, setOrderSearch] = useState('');
+  const [shippingOrderId, setShippingOrderId] = useState(null);
+  const [shippingWeight, setShippingWeight] = useState('0.5');
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingModalOpen, setShippingModalOpen] = useState(false);
 
   const [settingsForm, setSettingsForm] = useState(() => businessInfo || {});
 
@@ -392,6 +396,50 @@ export default function AdminPage() {
     }));
   };
 
+  const handleShipOrder = async (orderId) => {
+    setShippingLoading(true);
+    try {
+      const resp = await fetch('/api/shiprocket/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, weight: parseFloat(shippingWeight) || 0.5 })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        showToast(`Shipped! AWB: ${data.awbCode || 'Processing'} (${data.courierName || 'N/A'})`);
+        setShippingModalOpen(false);
+        setShippingOrderId(null);
+        // Refresh orders list
+        window.location.reload();
+      } else {
+        showToast('Shipping error: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      showToast('Shipping failed: ' + err.message);
+    } finally {
+      setShippingLoading(false);
+    }
+  };
+
+  const handleGenerateLabel = async (orderId) => {
+    try {
+      const resp = await fetch('/api/shiprocket/generate-label', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId })
+      });
+      const data = await resp.json();
+      if (data.success && data.labelUrl) {
+        window.open(data.labelUrl, '_blank');
+        showToast('Shipping label generated!');
+      } else {
+        showToast('Label error: ' + (data.error || 'Unknown'));
+      }
+    } catch (err) {
+      showToast('Label failed: ' + err.message);
+    }
+  };
+
   const handleProductFormSubmit = (e) => {
     e.preventDefault();
     if (!productForm.name || !productForm.price) {
@@ -467,8 +515,9 @@ export default function AdminPage() {
       const matchId = String(o.orderId || '').toLowerCase().includes(q);
       const matchName = String(o.customer?.name || '').toLowerCase().includes(q);
       const matchPhone = String(o.customer?.phone || o.customerPhone || '').includes(q);
+      const matchEmail = String(o.customer?.email || o.customerEmail || '').toLowerCase().includes(q);
       const matchStatus = String(o.status || '').toLowerCase().includes(q);
-      if (!matchId && !matchName && !matchPhone && !matchStatus) return false;
+      if (!matchId && !matchName && !matchPhone && !matchEmail && !matchStatus) return false;
     }
     return true;
   });
@@ -997,7 +1046,7 @@ export default function AdminPage() {
                   Recent Customer Orders
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Latest delivery requests from Bilaspur pet parents
+                  Latest delivery requests from pet parents across India
                 </p>
               </div>
               <button
@@ -1304,10 +1353,10 @@ export default function AdminPage() {
       {activeTab === 'orders' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
-            <div className="relative w-full sm:w-56">
+            <div className="relative w-full sm:w-72">
               <input
                 type="text"
-                placeholder="Search by order number..."
+                placeholder="Search by order #, name, phone, or email..."
                 value={orderSearch}
                 onChange={(e) => setOrderSearch(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500"
@@ -1350,7 +1399,7 @@ export default function AdminPage() {
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h4 className="font-heading font-black text-slate-900 text-base">
                         Order #{ord.orderId}
                       </h4>
@@ -1369,10 +1418,47 @@ export default function AdminPage() {
                       >
                         {ord.status}
                       </span>
+                      <span
+                        className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                          ord.customerId ? 'bg-sky-50 text-sky-700 border border-sky-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
+                        }`}
+                      >
+                        {ord.customerId ? 'Registered Customer' : 'Guest Order'}
+                      </span>
                     </div>
                     <p className="text-[11px] text-slate-400 mt-0.5">
                       Placed on: {ord.date}
                     </p>
+                    {/* Shiprocket Shipping Info */}
+                    {ord.courierName === 'Local Instant Delivery' && (
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                          <Zap className="w-3 h-3" />
+                          Local Instant Delivery
+                        </span>
+                      </div>
+                    )}
+                    {ord.awbCode && (
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                          <Truck className="w-3 h-3" />
+                          {ord.courierName || 'Shipped'}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">
+                          AWB: {ord.awbCode}
+                        </span>
+                        {ord.shippingLabelUrl && (
+                          <a
+                            href={ord.shippingLabelUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[10px] font-bold text-purple-600 hover:text-purple-800 underline"
+                          >
+                            Print Label
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -1390,6 +1476,20 @@ export default function AdminPage() {
                       <option value="Cancelled">Cancelled</option>
                       <option value="Deleted">Archived / Deleted</option>
                     </select>
+
+                    {!ord.awbCode && ord.courierName !== 'Local Instant Delivery' && ord.status !== 'Cancelled' && ord.status !== 'Delivered' && (
+                      <button
+                        onClick={() => {
+                          setShippingOrderId(ord.orderId);
+                          setShippingModalOpen(true);
+                        }}
+                        className="bg-sky-500 hover:bg-sky-600 text-white font-bold px-3 py-1.5 rounded-xl text-[11px] transition flex items-center gap-1 shadow-xs cursor-pointer"
+                        title="Ship via Shiprocket"
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        <span>Ship</span>
+                      </button>
+                    )}
 
                     <button
                       onClick={() => {
@@ -1420,6 +1520,14 @@ export default function AdminPage() {
                         {ord.customer?.phone || 'N/A'}
                       </a>
                     </p>
+                    {(ord.customer?.email || ord.customerEmail) && (
+                      <p className="text-slate-600 flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-slate-400" />
+                        <a href={`mailto:${ord.customer?.email || ord.customerEmail}`} className="text-slate-600 hover:text-sky-600 underline">
+                          {ord.customer?.email || ord.customerEmail}
+                        </a>
+                      </p>
+                    )}
                     <p className="text-slate-600 flex items-start gap-1.5 mt-1">
                       <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                       <span>{ord.customer?.address || ''}{ord.customer?.city ? `, ${ord.customer.city}` : ''}{ord.customer?.pincode ? ` - ${ord.customer.pincode}` : ''}</span>
@@ -2089,6 +2197,65 @@ export default function AdminPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Shiprocket Shipping Modal */}
+      {shippingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-heading font-black text-slate-900 text-base flex items-center gap-2">
+                <Truck className="w-5 h-5 text-sky-600" />
+                Ship Order
+              </h3>
+              <button
+                onClick={() => { setShippingModalOpen(false); setShippingOrderId(null); }}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              Create a Shiprocket shipment for Order <strong>#{shippingOrderId}</strong>. Courier will be auto-assigned.
+            </p>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Package Weight (kg)</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0.1"
+                value={shippingWeight}
+                onChange={(e) => setShippingWeight(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShippingModalOpen(false); setShippingOrderId(null); }}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleShipOrder(shippingOrderId)}
+                disabled={shippingLoading}
+                className="flex-1 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-xs"
+              >
+                {shippingLoading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Creating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Truck className="w-3.5 h-3.5" />
+                    <span>Create Shipment</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

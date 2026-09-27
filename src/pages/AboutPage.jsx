@@ -9,7 +9,9 @@ import {
   Phone,
   MapPin,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  MessageSquare,
+  Mail
 } from 'lucide-react';
 
 export default function AboutPage() {
@@ -24,7 +26,7 @@ export default function AboutPage() {
             About Us
           </span>
           <h1 className="font-heading text-3xl sm:text-5xl font-black max-w-2xl mx-auto">
-            Caring for Bilaspur’s Pets with Love & Quality
+            Caring for Pets Across India with Love & Quality
           </h1>
           <p className="text-sm sm:text-base text-sky-100 max-w-xl mx-auto font-normal leading-relaxed">
             Gargee Medicose is your premier pet supply and veterinary medicine store, offering certified pet foods, accessories, supplements, and grooming essentials.
@@ -48,8 +50,8 @@ export default function AboutPage() {
                 <Store className="w-6 h-6" />
               </div>
               <div>
-                <p className="font-heading font-black text-slate-800 text-lg">Shop #4</p>
-                <p className="text-[11px] text-slate-500">Opp. Shyam Mandir, Bilaspur</p>
+                <p className="font-heading font-black text-slate-800 text-lg">Gargee Medicose</p>
+                <p className="text-[11px] text-slate-500">Serving All Over India</p>
               </div>
             </div>
           </div>
@@ -62,7 +64,7 @@ export default function AboutPage() {
               Everything Your Pet Needs, Under One Roof
             </h2>
             <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-              Gargee Medicose is a trusted pet care store in Bilaspur offering pet food, accessories, medicines and everyday pet essentials. We focus on providing quality products for dogs, cats and other pets while making pet shopping simple and convenient.
+              Gargee Medicose is a trusted pet care store offering pet food, accessories, medicines and everyday pet essentials across India. We focus on providing quality products for dogs, cats and other pets while making pet shopping simple and convenient.
             </p>
             <p className="text-slate-600 text-sm leading-relaxed">
               Whether you are an individual pet parent looking for high-protein kibble or a veterinary clinic / breeder requiring bulk wholesale supplies, we are equipped to support you with certified, authentic products at transparent prices.
@@ -100,39 +102,37 @@ export default function AboutPage() {
         </div>
       </div>
 
-      {/* Location Map Section */}
+      {/* Contact Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-100 shadow-xl">
-          <div className="text-center space-y-3 mb-8">
+          <div className="text-center space-y-3">
             <span className="text-xs font-black uppercase tracking-wider text-sky-700 bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
-              Visit Us
+              Get in Touch
             </span>
             <h2 className="font-heading text-2xl sm:text-3xl font-extrabold text-slate-900">
-              Find Our Store in Bilaspur
+              We're Here to Help
             </h2>
-            <p className="text-slate-500 text-sm max-w-xl mx-auto flex items-center justify-center gap-2">
-              <MapPin className="w-4 h-4 text-sky-500 shrink-0" />
-              <span>{businessInfo.address}</span>
+            <p className="text-slate-500 text-sm max-w-xl mx-auto">
+              Reach out to us on WhatsApp or email for any queries about pet products, orders, or wholesale inquiries. We deliver across all of India.
             </p>
-          </div>
-
-          <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-200 h-[350px] sm:h-[450px] bg-slate-50 relative">
-            {businessInfo.mapEmbedUrl ? (
-              <iframe
-                src={businessInfo.mapEmbedUrl}
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen=""
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                className="absolute inset-0"
-              ></iframe>
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-slate-400 font-bold text-sm">
-                Map location not configured
-              </div>
-            )}
+            <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+              <a
+                href={businessInfo.whatsappUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-6 py-3 rounded-full transition"
+              >
+                <MessageSquare className="w-4 h-4" />
+                WhatsApp Us
+              </a>
+              <a
+                href={`mailto:${businessInfo.email}`}
+                className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-bold px-6 py-3 rounded-full transition"
+              >
+                <Mail className="w-4 h-4" />
+                Email Us
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -145,7 +145,7 @@ export default function AboutPage() {
               Why Pet Parents Trust Us
             </h3>
             <p className="text-xs text-slate-500">
-              Four key pillars that define our service to Bilaspur's pet community
+              Four key pillars that define our service to pet parents
             </p>
           </div>
 
@@ -179,7 +179,7 @@ export default function AboutPage() {
                 <Truck className="w-6 h-6" />
               </div>
               <h4 className="font-heading font-bold text-slate-800 text-base">Trusted Local Store</h4>
-              <p className="text-xs text-slate-500">Serving pet parents in Bilaspur with reliable advice and prompt service.</p>
+              <p className="text-xs text-slate-500">Serving pet parents with reliable advice and prompt service.</p>
             </div>
           </div>
         </div>
@@ -199,10 +199,10 @@ export default function AboutPage() {
         <div className="space-y-3 pt-4">
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-1.5">
             <h4 className="font-heading font-bold text-slate-900 text-sm sm:text-base">
-              Do you deliver pet food and medicines across Bilaspur?
+              Do you deliver pet food and medicines across India?
             </h4>
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              Yes! We offer fast local doorstep delivery across all Bilaspur localities including Nehru Nagar, Vyapar Vihar, Link Road, Rajendra Nagar, Sarkanda, and Torwa. Orders above ₹999 qualify for free delivery.
+              Yes! We offer fast doorstep delivery across India. Orders above ₹999 qualify for free delivery.
             </p>
           </div>
 
@@ -217,10 +217,10 @@ export default function AboutPage() {
 
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-1.5">
             <h4 className="font-heading font-bold text-slate-900 text-sm sm:text-base">
-              Can I place an order directly on WhatsApp or Call?
+              Can I place an order directly on WhatsApp?
             </h4>
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              Yes, you can order online through this website or click the WhatsApp / Call button ({businessInfo.phoneFormatted}) to send your required product list for instant confirmation.
+              Yes, you can order online through this website or click Customer Care Support to reach us directly on WhatsApp and send your required product list for instant confirmation.
             </p>
           </div>
 

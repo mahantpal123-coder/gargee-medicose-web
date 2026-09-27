@@ -1,22 +1,26 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, db } from '../firebase.js';
+import { auth } from '../firebase.js';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import {
-  doc,
-  collection,
-  onSnapshot,
-  setDoc,
-  getDoc,
-  updateDoc,
-  deleteDoc,
-  runTransaction
-} from 'firebase/firestore';
 import { verifyIsAdmin, signOutAdmin } from '../utils/adminAuth.js';
 import {
   PRODUCTS as INITIAL_PRODUCTS,
   CATEGORIES as INITIAL_CATEGORIES,
   BUSINESS_INFO as INITIAL_BUSINESS_INFO
 } from '../data/mockData';
+
+let _adminToken = null;
+
+const api = async (path, options = {}) => {
+  const { headers, ...rest } = options;
+  const tokenHeader = _adminToken ? { Authorization: `Bearer ${_adminToken}` } : {};
+  const resp = await fetch(path, {
+    ...rest,
+    headers: { 'Content-Type': 'application/json', ...tokenHeader, ...headers }
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.error || `Request failed (${resp.status})`);
+  return data;
+};
 
 const ShopContext = createContext();
 
@@ -192,83 +196,58 @@ export function ShopProvider({ children }) {
   const [cartBadgeBump, setCartBadgeBump] = useState(false);
   const [wishlistBadgeBump, setWishlistBadgeBump] = useState(false);
 
-  // REAL-TIME FIRESTORE LISTENERS FOR INDIVIDUAL COLLECTIONS
+  // LIVE SYNC VIA REST POLLING (Hostinger MySQL backend)
   useEffect(() => {
-    let unsubProducts = () => {};
-    let unsubOrders = () => {};
-    let unsubSettings = () => {};
+    let cancelled = false;
 
-    try {
-      // 1. Listen to products collection
-      unsubProducts = onSnapshot(
-        collection(db, 'products'),
-        (snapshot) => {
-          if (!snapshot.empty) {
-            const fetchedProducts = snapshot.docs.map((docSnap) => ({
-              id: docSnap.id,
-              ...docSnap.data()
-            }));
-            setProducts(fetchedProducts);
-            try {
-              localStorage.setItem('gargee_products', JSON.stringify(fetchedProducts));
-            } catch (e) {}
-            setCloudSyncStatus('connected');
-          }
-        },
-        (error) => {
-          console.warn('Products snapshot note:', error.message);
+    const load = async () => {
+      try {
+        const [prodData, orderData, catalogData] = await Promise.all([
+          api('/api/products').catch(() => null),
+          api('/api/orders').catch(() => null),
+          api('/api/catalog').catch(() => null)
+        ]);
+
+        if (cancelled) return;
+
+        if (prodData?.products?.length) {
+          setProducts(prodData.products);
+          try {
+            localStorage.setItem('gargee_products', JSON.stringify(prodData.products));
+          } catch (e) {}
+        }
+
+        if (orderData?.orders?.length) {
+          const fetchedOrders = [...orderData.orders].sort((a, b) => {
+            const timeA = new Date(a.createdAt || a.date || 0).getTime();
+            const timeB = new Date(b.createdAt || b.date || 0).getTime();
+            return timeB - timeA;
+          });
+          setOrders(fetchedOrders);
+          try {
+            localStorage.setItem('gargee_orders', JSON.stringify(fetchedOrders));
+          } catch (e) {}
+        }
+
+        const catalog = catalogData?.data;
+        if (catalog?.businessInfo) setBusinessInfoState(catalog.businessInfo);
+        if (catalog?.categories) setCategories(catalog.categories);
+
+        setCloudSyncStatus(prodData ? 'connected' : 'fallback');
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('Sync note:', err.message);
           setCloudSyncStatus('fallback');
         }
-      );
+      }
+    };
 
-      // 2. Listen to orders collection
-      unsubOrders = onSnapshot(
-        collection(db, 'orders'),
-        (snapshot) => {
-          if (!snapshot.empty) {
-            const fetchedOrders = snapshot.docs
-              .map((docSnap) => ({
-                id: docSnap.id,
-                ...docSnap.data()
-              }))
-              .sort((a, b) => {
-                const timeA = new Date(a.createdAt || a.date || 0).getTime();
-                const timeB = new Date(b.createdAt || b.date || 0).getTime();
-                return timeB - timeA;
-              });
-            setOrders(fetchedOrders);
-            try {
-              localStorage.setItem('gargee_orders', JSON.stringify(fetchedOrders));
-            } catch (e) {}
-          }
-        },
-        (error) => {
-          console.warn('Orders snapshot note:', error.message);
-        }
-      );
-
-      // 3. Listen to store settings document
-      unsubSettings = onSnapshot(
-        doc(db, 'settings', 'store_config'),
-        (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.data();
-            if (data.businessInfo) setBusinessInfoState(data.businessInfo);
-            if (data.categories) setCategories(data.categories);
-          }
-        },
-        (error) => {
-          console.warn('Settings snapshot note:', error.message);
-        }
-      );
-    } catch (err) {
-      console.warn('Firestore listeners setup warning:', err);
-    }
+    load();
+    const timer = setInterval(load, 30000);
 
     return () => {
-      unsubProducts();
-      unsubOrders();
-      unsubSettings();
+      cancelled = true;
+      clearInterval(timer);
     };
   }, []);
 
@@ -277,14 +256,18 @@ export function ShopProvider({ children }) {
       if (user) {
         const isAdmin = await verifyIsAdmin(user);
         if (isAdmin) {
+          const token = await user.getIdToken();
+          _adminToken = token;
           setAdminUser({
             uid: user.uid,
             email: user.email,
             displayName: user.displayName || 'Store Administrator',
-            photoURL: user.photoURL || ''
+            photoURL: user.photoURL || '',
+            getIdToken: () => user.getIdToken()
           });
           setIsAdminLoggedIn(true);
         } else {
+          _adminToken = null;
           setAdminUser(null);
           setIsAdminLoggedIn(false);
         }
@@ -344,6 +327,7 @@ export function ShopProvider({ children }) {
 
   const adminLogout = async () => {
     await signOutAdmin();
+    _adminToken = null;
     setAdminUser(null);
     setIsAdminLoggedIn(false);
     localStorage.removeItem('gargee_admin_auth');
@@ -355,12 +339,25 @@ export function ShopProvider({ children }) {
     const finalPrice = selectedVariant ? Number(selectedVariant.price) : Number(product.price);
     const finalOldPrice = selectedVariant && selectedVariant.oldPrice ? Number(selectedVariant.oldPrice) : product.oldPrice;
 
+    const availableStock = selectedVariant?.stock !== undefined
+      ? Number(selectedVariant.stock)
+      : (product.stock !== undefined ? Number(product.stock) : (product.inStock !== false ? 10 : 0));
+
     setCart((prevCart) => {
       const existing = prevCart.find((item) => item.cartItemId === cartItemId);
       if (existing) {
+        const newQty = existing.quantity + quantity;
+        if (newQty > availableStock) {
+          showToast(`Only ${availableStock} units available. You already have ${existing.quantity} in cart.`);
+          return prevCart.map((item) =>
+            item.cartItemId === cartItemId
+              ? { ...item, quantity: availableStock }
+              : item
+          );
+        }
         return prevCart.map((item) =>
           item.cartItemId === cartItemId
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { ...item, quantity: newQty }
             : item
         );
       }
@@ -465,7 +462,7 @@ export function ShopProvider({ children }) {
     };
 
     try {
-      await setDoc(doc(db, 'products', prodId), productWithId);
+      await api('/api/products', { method: 'POST', body: JSON.stringify(productWithId) });
       setProducts((prev) => [productWithId, ...prev.filter((p) => p.id !== prodId)]);
       showToast('Product added to store!');
     } catch (err) {
@@ -487,7 +484,7 @@ export function ShopProvider({ children }) {
     }
 
     try {
-      await setDoc(doc(db, 'products', id), updatedDoc, { merge: true });
+      await api('/api/products', { method: 'PUT', body: JSON.stringify({ id, ...updatedDoc }) });
       setProducts((prev) => prev.map((item) => (item.id === id ? { ...item, ...updatedDoc } : item)));
       showToast('Product updated successfully!');
     } catch (err) {
@@ -498,7 +495,7 @@ export function ShopProvider({ children }) {
 
   const deleteProduct = async (id) => {
     try {
-      await deleteDoc(doc(db, 'products', id));
+      await api(`/api/products?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       setProducts((prev) => prev.filter((item) => item.id !== id));
       showToast('Product deleted from store.');
     } catch (err) {
@@ -513,10 +510,9 @@ export function ShopProvider({ children }) {
     const newInStock = target.inStock === false ? true : false;
     const newStock = newInStock ? 10 : 0;
     try {
-      await updateDoc(doc(db, 'products', id), {
-        inStock: newInStock,
-        stock: newStock,
-        updatedAt: new Date().toISOString()
+      await api('/api/products', {
+        method: 'PUT',
+        body: JSON.stringify({ id, inStock: newInStock, stock: newStock })
       });
       setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, inStock: newInStock, stock: newStock } : p)));
       showToast(`"${target.name.slice(0, 20)}..." marked ${newInStock ? 'In Stock' : 'Out of Stock'}`);
@@ -530,10 +526,7 @@ export function ShopProvider({ children }) {
     if (!target) return;
     const newVal = !target.isBestSeller;
     try {
-      await updateDoc(doc(db, 'products', id), {
-        isBestSeller: newVal,
-        updatedAt: new Date().toISOString()
-      });
+      await api('/api/products', { method: 'PUT', body: JSON.stringify({ id, isBestSeller: newVal }) });
       setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, isBestSeller: newVal } : p)));
       showToast(`"${target.name.slice(0, 20)}..." Best Seller ${newVal ? 'enabled' : 'disabled'}`);
     } catch (err) {
@@ -546,10 +539,7 @@ export function ShopProvider({ children }) {
     if (!target) return;
     const newVal = !target.isFeatured;
     try {
-      await updateDoc(doc(db, 'products', id), {
-        isFeatured: newVal,
-        updatedAt: new Date().toISOString()
-      });
+      await api('/api/products', { method: 'PUT', body: JSON.stringify({ id, isFeatured: newVal }) });
       setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, isFeatured: newVal } : p)));
       showToast(`"${target.name.slice(0, 20)}..." Featured ${newVal ? 'enabled' : 'disabled'}`);
     } catch (err) {
@@ -619,80 +609,23 @@ export function ShopProvider({ children }) {
     };
 
     try {
-      const orderDocRef = doc(db, 'orders', generatedOrderId);
-
-      // Execute transaction for atomic order creation and stock update
-      await runTransaction(db, async (transaction) => {
-        // --- PHASE 1: ALL READS FIRST ---
-        // 1. Read existing order document for idempotency check
-        const existingOrderSnap = await transaction.get(orderDocRef);
-        if (existingOrderSnap.exists()) {
-          return;
-        }
-
-        // 2. Map and accumulate required quantities per product ID
-        const productQtyMap = new Map();
-        for (const item of finalOrder.items) {
-          if (item.productId) {
-            const currentQty = productQtyMap.get(item.productId) || 0;
-            productQtyMap.set(item.productId, currentQty + item.quantity);
-          }
-        }
-
-        const uniqueProductIds = Array.from(productQtyMap.keys());
-
-        // 3. Perform ALL transaction reads in parallel before any writes
-        const productSnapshots = await Promise.all(
-          uniqueProductIds.map((prodId) => transaction.get(doc(db, 'products', prodId)))
-        );
-
-        const prodSnapMap = new Map();
-        uniqueProductIds.forEach((prodId, idx) => {
-          prodSnapMap.set(prodId, productSnapshots[idx]);
-        });
-
-        // --- PHASE 2: VALIDATE EVERYTHING IN MEMORY ---
-        const stockUpdates = [];
-
-        for (const [prodId, requiredQty] of productQtyMap.entries()) {
-          const prodSnap = prodSnapMap.get(prodId);
-          if (prodSnap && prodSnap.exists()) {
-            const prodData = prodSnap.data();
-            const currentStock = prodData.stock !== undefined ? Number(prodData.stock) : 10;
-
-            if (currentStock < requiredQty) {
-              throw new Error(`Insufficient stock for ${prodData.name || prodId}. Available: ${currentStock}, Required: ${requiredQty}`);
-            }
-
-            const newStock = Math.max(0, currentStock - requiredQty);
-            stockUpdates.push({
-              ref: doc(db, 'products', prodId),
-              newStock,
-              inStock: newStock > 0
-            });
-          }
-        }
-
-        // --- PHASE 3: ALL WRITES AFTER READS ---
-        // 1. Update stock for all products
-        for (const update of stockUpdates) {
-          transaction.update(update.ref, {
-            stock: update.newStock,
-            inStock: update.inStock,
-            updatedAt: new Date().toISOString()
-          });
-        }
-
-        // 2. Write order document
-        transaction.set(orderDocRef, finalOrder);
+      // Backend owns the transaction: validates stock, decrements atomically,
+      // recalculates totals, and enforces idempotency on generatedOrderId.
+      const result = await api('/api/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...finalOrder,
+          customerId: orderData.customerId || orderData.customer?.uid || null
+        })
       });
 
-      // Update local state
-      setOrders((prev) => [finalOrder, ...prev.filter((o) => o.orderId !== generatedOrderId)]);
+      const savedOrder = result.order || finalOrder;
+
+      setOrders((prev) => [savedOrder, ...prev.filter((o) => o.orderId !== generatedOrderId)]);
       setCloudSyncStatus('connected');
-      return { success: true, order: finalOrder };
+      return { success: true, order: savedOrder };
     } catch (err) {
-      console.error('Firestore order creation error:', err);
+      console.error('Order creation error:', err);
       setCloudSyncStatus('fallback');
 
       const userFriendlyError = err.message?.includes('Insufficient stock')
@@ -704,12 +637,38 @@ export function ShopProvider({ children }) {
   };
 
   const updateOrderStatus = async (orderId, newStatus) => {
+    const targetOrder = orders.find((ord) => ord.orderId === orderId || ord.id === orderId);
+
     try {
-      await updateDoc(doc(db, 'orders', orderId), {
+      const updates = {
         status: newStatus,
         updatedAt: new Date().toISOString()
+      };
+      if (newStatus === 'Delivered') {
+        updates.deliveredAt = new Date().toISOString();
+      }
+
+      await api('/api/orders', {
+        method: 'PUT',
+        body: JSON.stringify({ orderId, status: newStatus })
       });
-      setOrders((prev) => prev.map((ord) => (ord.orderId === orderId ? { ...ord, status: newStatus } : ord)));
+
+      // Dispatch status update notification email to customer
+      if (targetOrder?.customer?.email || targetOrder?.customerEmail) {
+        fetch('/api/send-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'status_update',
+            orderId,
+            newStatus,
+            customer: targetOrder.customer || { email: targetOrder.customerEmail, name: targetOrder.customer_name },
+            order: targetOrder
+          })
+        }).catch((err) => console.warn('Status notification email notice:', err.message));
+      }
+
+      setOrders((prev) => prev.map((ord) => (ord.orderId === orderId || ord.id === orderId ? { ...ord, ...updates } : ord)));
       showToast(`Order #${orderId} marked as ${newStatus}`);
     } catch (err) {
       console.error('Error updating order status:', err);
@@ -725,17 +684,29 @@ export function ShopProvider({ children }) {
 
     const returnRequestedAt = new Date().toISOString();
     try {
-      await updateDoc(doc(db, 'orders', orderId), {
-        status: 'Return Requested',
-        returnRequestedAt,
-        returnReason: reason,
-        updatedAt: returnRequestedAt
+      await api('/api/orders', {
+        method: 'PUT',
+        body: JSON.stringify({ orderId, status: 'Return Requested', returnReason: reason, returnRequestedAt })
       });
       setOrders((prev) =>
         prev.map((ord) =>
           ord.orderId === orderId ? { ...ord, status: 'Return Requested', returnRequestedAt, returnReason: reason } : ord
         )
       );
+
+      fetch('/api/send-return', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          customer: targetOrder.customer || currentCustomer,
+          items: targetOrder.items,
+          total: targetOrder.total,
+          reason,
+          returnRequestedAt
+        })
+      }).catch((e) => console.warn('Return notification error:', e));
+
       showToast(`Return requested for Order #${orderId}`);
       return true;
     } catch (err) {
@@ -746,7 +717,7 @@ export function ShopProvider({ children }) {
 
   const deleteOrder = async (orderId) => {
     try {
-      await deleteDoc(doc(db, 'orders', orderId));
+      await api(`/api/orders?id=${encodeURIComponent(orderId)}`, { method: 'DELETE' });
       setOrders((prev) => prev.filter((ord) => ord.orderId !== orderId));
       showToast('Order removed.');
     } catch (err) {
@@ -818,10 +789,15 @@ export function ShopProvider({ children }) {
     setBusinessInfoState(formatted);
     try {
       localStorage.setItem('gargee_business_info', JSON.stringify(formatted));
-      await setDoc(doc(db, 'settings', 'store_config'), { businessInfo: formatted }, { merge: true });
     } catch (e) {
       console.warn(e);
     }
+
+    api('/api/catalog', {
+      method: 'PUT',
+      body: JSON.stringify({ businessInfo: formatted })
+    })
+      .catch((e) => console.warn('Business info sync note:', e.message));
     return formatted;
   };
 

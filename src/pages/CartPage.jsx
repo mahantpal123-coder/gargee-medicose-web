@@ -1,6 +1,6 @@
 import React from 'react';
 import { useShop } from '../context/ShopContext';
-import { Trash2, ShoppingBag, ArrowRight, ArrowLeft, ShieldCheck, Truck, RotateCcw } from 'lucide-react';
+import { Trash2, ShoppingBag, ArrowRight, ArrowLeft, ShieldCheck, Truck, RotateCcw, MessageSquare } from 'lucide-react';
 
 export default function CartPage() {
   const {
@@ -11,7 +11,8 @@ export default function CartPage() {
     cartSubtotal,
     deliveryFee,
     cartTotal,
-    navigateTo
+    navigateTo,
+    businessInfo
   } = useShop();
 
   if (cart.length === 0) {
@@ -70,7 +71,7 @@ export default function CartPage() {
             >
               {}
               <div
-                onClick={() => navigateTo('product', { productId: item.id })}
+                onClick={() => navigateTo('product', { productId: item.productId || item.id })}
                 className="w-18 h-18 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl bg-slate-50 p-1.5 overflow-hidden shrink-0 cursor-pointer border border-slate-100"
               >
                 <img
@@ -86,7 +87,7 @@ export default function CartPage() {
                   {item.brand}
                 </span>
                 <h3
-                  onClick={() => navigateTo('product', { productId: item.id })}
+                  onClick={() => navigateTo('product', { productId: item.productId || item.id })}
                   className="font-heading font-extrabold text-slate-900 text-xs sm:text-base hover:text-sky-600 cursor-pointer transition line-clamp-1"
                 >
                   {item.name} {item.selectedVariant && <span className="text-slate-500 font-semibold">({item.selectedVariant.size})</span>}
@@ -97,7 +98,7 @@ export default function CartPage() {
                   <div className="flex items-center border border-slate-200 rounded-full bg-slate-50 p-0.5 sm:p-1">
                     <button
                       onClick={() => updateCartQuantity(itemKey, -1)}
-                      className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white text-slate-700 hover:bg-slate-200 font-extrabold flex items-center justify-center transition shadow-xs text-xs"
+                      className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white text-slate-700 hover:bg-slate-200 font-extrabold flex items-center justify-center transition shadow-xs text-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                       aria-label="Decrease quantity"
                     >
                       -
@@ -107,7 +108,8 @@ export default function CartPage() {
                     </span>
                     <button
                       onClick={() => updateCartQuantity(itemKey, 1)}
-                      className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white text-slate-700 hover:bg-slate-200 font-extrabold flex items-center justify-center transition shadow-xs text-xs"
+                      disabled={item.quantity >= (item.stock || 10)}
+                      className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white text-slate-700 hover:bg-slate-200 font-extrabold flex items-center justify-center transition shadow-xs text-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                       aria-label="Increase quantity"
                     >
                       +
@@ -160,7 +162,7 @@ export default function CartPage() {
               </div>
 
               <div className="flex justify-between">
-                <span>Delivery (Bilaspur)</span>
+                <span>Delivery</span>
                 <span className="font-bold text-emerald-600">
                   {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
                 </span>
@@ -190,10 +192,15 @@ export default function CartPage() {
 
             {}
             <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
-              <div className="flex items-center gap-2">
-                <RotateCcw className="w-4 h-4 text-sky-500 shrink-0" />
-                <span>2-Day Easy Return & Replacement Policy</span>
-              </div>
+              <a
+                href={businessInfo.whatsappUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 hover:text-emerald-600 transition"
+              >
+                <MessageSquare className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span>Customer Care Support on WhatsApp</span>
+              </a>
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span>100% Genuine Certified Pet Supplies</span>

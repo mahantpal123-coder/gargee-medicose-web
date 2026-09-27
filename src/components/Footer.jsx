@@ -11,7 +11,8 @@ import {
   ArrowRight,
   PawPrint,
   Camera,
-  RotateCcw
+  RotateCcw,
+  MessageSquare
 } from 'lucide-react';
 
 export default function Footer() {
@@ -32,23 +33,28 @@ export default function Footer() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 justify-center md:justify-start">
-            <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
-              <RotateCcw className="w-6 h-6" />
+          <a
+            href={businessInfo.whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-4 justify-center md:justify-start hover:opacity-90 transition group"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition">
+              <MessageSquare className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="font-bold text-white text-base">2-Day Return Guarantee</h4>
-              <p className="text-xs text-slate-400">Easy 48-hour replacement window on eligible products.</p>
+              <h4 className="font-bold text-white text-base">Customer Care Support</h4>
+              <p className="text-xs text-slate-400">Instant assistance & order support on WhatsApp.</p>
             </div>
-          </div>
+          </a>
 
           <div className="flex items-center gap-4 justify-center md:justify-start">
             <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
               <Truck className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="font-bold text-white text-base">Fast Bilaspur Delivery</h4>
-              <p className="text-xs text-slate-400">Doorstep delivery across Bilaspur city & surrounding areas.</p>
+              <h4 className="font-bold text-white text-base">Pan India Delivery</h4>
+              <p className="text-xs text-slate-400">Fast doorstep delivery across India. Free shipping above ₹1,000.</p>
             </div>
           </div>
 
@@ -96,7 +102,7 @@ export default function Footer() {
           </div>
 
           <p className="text-sm text-slate-400 leading-relaxed max-w-sm">
-            Your trusted destination for pet food, accessories, medicines and everyday pet care essentials in Bilaspur, Chhattisgarh. Serving pet parents with love and dedication.
+            Your trusted destination for pet food, accessories, medicines and everyday pet care essentials across India. Serving pet parents with love and dedication.
           </p>
 
           {}
@@ -182,10 +188,19 @@ export default function Footer() {
             </li>
             <li>
               <button
+                onClick={() => navigateTo('track')}
+                className="hover:text-sky-400 transition flex items-center gap-1.5"
+              >
+                <Truck className="w-3.5 h-3.5 text-sky-400" />
+                <span>Track Your Order</span>
+              </button>
+            </li>
+            <li>
+              <button
                 onClick={() => navigateTo('contact')}
                 className="hover:text-sky-400 transition"
               >
-                Contact & Store Location
+                Contact Us
               </button>
             </li>
             <li>
@@ -210,22 +225,18 @@ export default function Footer() {
         {}
         <div>
           <h5 className="font-heading font-bold text-white text-base mb-4 tracking-wide uppercase text-xs text-sky-400">
-            Store Location
+            Get in Touch
           </h5>
           <div className="space-y-3 text-sm text-slate-400">
-            <div className="flex items-start gap-2.5">
-              <MapPin className="w-4 h-4 text-sky-400 shrink-0 mt-1" />
-              <p className="leading-snug text-xs">
-                {businessInfo.address}
-              </p>
-            </div>
             <div className="flex items-center gap-2.5">
-              <Phone className="w-4 h-4 text-sky-400 shrink-0" />
+              <MessageSquare className="w-4 h-4 text-emerald-400 shrink-0" />
               <a
-                href={`tel:${businessInfo.phone}`}
-                className="text-white hover:text-sky-400 font-semibold"
+                href={businessInfo.whatsappUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-white hover:text-emerald-400 font-semibold"
               >
-                {businessInfo.phoneFormatted}
+                WhatsApp Support
               </a>
             </div>
             <div className="flex items-center gap-2.5">
@@ -237,6 +248,15 @@ export default function Footer() {
                 className="hover:text-sky-400"
               >
                 {businessInfo.instagram}
+              </a>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <Mail className="w-4 h-4 text-sky-400 shrink-0" />
+              <a
+                href={`mailto:${businessInfo.email}`}
+                className="hover:text-sky-400"
+              >
+                {businessInfo.email}
               </a>
             </div>
           </div>
@@ -266,7 +286,7 @@ export default function Footer() {
           </button>
         </div>
         <p className="flex items-center gap-1 justify-center">
-          Dedicated to your pet’s health & happiness in Bilaspur.
+          Dedicated to your pet’s health & happiness across India.
         </p>
       </div>
     </footer>

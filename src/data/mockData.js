@@ -1,18 +1,18 @@
 export const BUSINESS_INFO = {
   "name": "Gargee Medicose",
   "tagline": "Your Pet Store",
-  "announcement": "Bilaspur's Trusted Pet Care Store • Fast Doorstep Delivery Across City",
+  "announcement": "India's Trusted Pet Care Store • Fast Doorstep Delivery Across India",
   "phone": "9993617796",
   "phoneFormatted": "+91 99936 17796",
   "email": "mahantpal123@gmail.com",
   "instagram": "@gargeemedicose",
   "instagramUrl": "https://instagram.com/gargeemedicose",
   "whatsappUrl": "https://wa.me/919993617796",
-  "address": "Shop 4, Opposite Shyam Mandir, Juna Bilaspur Road, Shanichari Bazar, Bilaspur, Chhattisgarh",
-  "city": "Bilaspur",
-  "state": "Chhattisgarh",
-  "pincode": "495001",
-  "mapEmbedUrl": "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3697.110532305678!2d82.15692117358296!3d22.083595350718625!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3a280be304ddc27f%3A0x48b6b0f76cfd3948!2sGargee%20Medicose!5e0!3m2!1sen!2sin!4v1788079825203!5m2!1sen!2sin"
+  "address": "Gargee Medicose, India",
+  "city": "",
+  "state": "",
+  "pincode": "",
+  "mapEmbedUrl": ""
 };
 
 export const CATEGORIES = [
